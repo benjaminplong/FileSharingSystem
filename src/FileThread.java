@@ -4,6 +4,7 @@
 
 import java.lang.Thread;
 import java.net.Socket;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.io.File;
 import java.io.FileInputStream;
@@ -14,10 +15,12 @@ import java.io.ObjectOutputStream;
 public class FileThread extends Thread
 {
 	private final Socket socket;
+	private final PublicKey publicKey;
 
-	public FileThread(Socket _socket)
+	public FileThread(Socket _socket, PublicKey _publicKey)
 	{
 		socket = _socket;
+		publicKey = _publicKey;
 	}
 
 	public void run()
@@ -29,6 +32,11 @@ public class FileThread extends Thread
 			final ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
 			final ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
 			Envelope response;
+			
+			// alert the user of the file servers public key on connect
+			response = new Envelope("PUBLICKEY");
+			response.addObject(publicKey);
+			output.writeObject(response);
 
 			do
 			{
