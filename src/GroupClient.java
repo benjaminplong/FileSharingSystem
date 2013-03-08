@@ -1,11 +1,16 @@
 /* Implements the GroupClient Interface */
 
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class GroupClient extends Client implements GroupClientInterface {
  
-	 public UserToken getToken(String username)
+	
+	GroupClient() throws NoSuchAlgorithmException{
+		super();
+	}
+	 public UserToken getToken(String username,String password)
 	 {
 		try
 		{
@@ -45,7 +50,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 		
 	 }
 	 
-	 public boolean createUser(String username, UserToken token)
+	 public boolean createUser(String username, String password, UserToken token)
 	 {
 		 try
 			{

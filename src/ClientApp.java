@@ -8,6 +8,7 @@
  */
 import java.awt.*;
 import java.awt.event.*;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 import javax.swing.*;
@@ -24,12 +25,12 @@ public class ClientApp extends JFrame implements WindowListener
 
 	private UserToken myToken;
 
-	public static void main(String[] args)
+	public static void main(String[] args) throws NoSuchAlgorithmException
 	{
 		new ClientApp();
 	}
 
-	public ClientApp()
+	public ClientApp() throws NoSuchAlgorithmException
 	{
 		super("Group-File Client Application");
 
@@ -342,8 +343,9 @@ public class ClientApp extends JFrame implements WindowListener
 	protected void createUserButtonPressed()
 	{
 		String username = JOptionPane.showInputDialog(this, "Please enter the username use wish to create:", "Input", JOptionPane.QUESTION_MESSAGE);
+		String password = JOptionPane.showInputDialog(this, "Please enter the user's password wish to create:", "Input", JOptionPane.QUESTION_MESSAGE);
 
-		if (gc.createUser(username, myToken))
+		if (gc.createUser(username, password, myToken))
 			JOptionPane.showMessageDialog(this, "User created successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
 		else
 			JOptionPane.showMessageDialog(this, "User not created.", "Warning", JOptionPane.WARNING_MESSAGE);
@@ -352,10 +354,11 @@ public class ClientApp extends JFrame implements WindowListener
 	protected void getTokenButtonPressed()
 	{
 		String username = JOptionPane.showInputDialog(this, "Please enter your username:", "Input", JOptionPane.QUESTION_MESSAGE);
+		String password = JOptionPane.showInputDialog(this, "Please enter your password:", "Input", JOptionPane.QUESTION_MESSAGE);
 
 		if (!username.isEmpty())
 		{
-			myToken = gc.getToken(username);
+			myToken = gc.getToken(username,password);
 
 			if (myToken == null)
 				JOptionPane.showMessageDialog(this, "No token received. Check username.", "Warning", JOptionPane.WARNING_MESSAGE);

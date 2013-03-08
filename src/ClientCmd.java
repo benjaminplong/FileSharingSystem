@@ -1,3 +1,4 @@
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Scanner;
 
@@ -11,13 +12,13 @@ public class ClientCmd {
 	private UserToken myToken;
 	private Scanner input;
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws NoSuchAlgorithmException {
 		new ClientCmd();
 
 	}
 	
 	// default constructor for command line client application
-	ClientCmd(){
+	ClientCmd() throws NoSuchAlgorithmException{
 		gc = new GroupClient();
 		fc = new FileClient();
 		input = new Scanner(System.in);
@@ -250,20 +251,19 @@ public class ClientCmd {
 	}
 	private void mkUser(String[] command){
 		String username = command[1];
-		//TODO: add new password field
-		if (gc.createUser(username, myToken))
+		String password = command[2];
+		if (gc.createUser(username, password, myToken))
 			System.out.println("User Created successfully");
 		else
 			System.out.println("User not Created");
 	}
 	private void getToken(String[] command){
 		String username = command[1];
-		
-		//TODO: add password functionality
+		String password = command[2];
 
 		if (!username.isEmpty())
 		{
-			myToken = gc.getToken(username);
+			myToken = gc.getToken(username,password);
 
 			if (myToken == null)
 				System.out.println("No token received");
