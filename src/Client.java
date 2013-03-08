@@ -3,6 +3,7 @@ import java.net.UnknownHostException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException; 
 import java.security.PublicKey;
+import java.util.Arrays;
 import java.util.Random;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -86,7 +87,7 @@ public abstract class Client {
 			e = (Envelope)input.readObject();
 			
 			if(e.getMessage().equals("AUTHVALUE")){
-				if(e.getObjContents().get(0).toString().equals(value.toString())){
+				if(Arrays.equals((byte[])e.getObjContents().get(0), value)){
 					return sock.isConnected();
 				}
 				else{

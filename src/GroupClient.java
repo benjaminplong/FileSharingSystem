@@ -66,7 +66,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 				if(temp.size() == 1)
 				{
-					token = decryptAES(temp.get(0).toString().getBytes());
+					token = decryptAES((byte[])temp.get(0));
 					return token;
 				}
 			}

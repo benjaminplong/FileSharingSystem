@@ -17,7 +17,7 @@ public class FileClient extends Client implements FileClientInterface {
 
 	public boolean sendGroupKey(final byte[] groupKey)
 	{
-		Envelope message = new Envelope("LFILES");
+		Envelope message = new Envelope("GROUPKEY");
 		message.addObject(encryptAES(groupKey)); // add the group servers public key
 		try {
 			output.writeObject(message);

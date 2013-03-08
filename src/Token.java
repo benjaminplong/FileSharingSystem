@@ -55,9 +55,9 @@ public class Token implements UserToken, java.io.Serializable {
 	 * @see UserToken#getGroups()
 	 */
 	@SuppressWarnings("unchecked")
-	public List<String> getGroups() {
+	public TreeSet<String> getGroups() {
 		// TODO Auto-generated method stub
-		return (List<String>) _groups.clone();
+		return (TreeSet<String>) _groups.clone();
 	}
 
 	@Override
