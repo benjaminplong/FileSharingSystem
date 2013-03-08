@@ -4,6 +4,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.crypto.Cipher;
+
 public class GroupClient extends Client implements GroupClientInterface {
  
 	
@@ -14,12 +16,16 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 {
 		try
 		{
+			Cipher cipher = Cipher.getInstance("AES");
+			cipher.init(Cipher.ENCRYPT_MODE,this.sessionKey);
 			UserToken token = null;
 			Envelope message = null, response = null;
-		 		 	
+			String pair = username +"\n"+password;
+			
+			byte[] toSend = cipher.doFinal(pair.getBytes());
 			//Tell the server to return a token.
 			message = new Envelope("GET");
-			message.addObject(username); //Add user name string
+			message.addObject(toSend); //Add user name string
 			output.writeObject(message);
 		
 			//Get the response from the server

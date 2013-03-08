@@ -21,7 +21,7 @@ public abstract class Client {
 	protected ObjectOutputStream output;
 	protected ObjectInputStream input;
 	protected PublicKey serverKey;
-	private SecretKey sessionKey;
+	protected SecretKey sessionKey;
 	private Random rand;
 	
 	//set up keys and random number generator
@@ -41,8 +41,10 @@ public abstract class Client {
 			
 			output = new ObjectOutputStream(sock.getOutputStream());
 			input = new ObjectInputStream(sock.getInputStream());
+			Envelope e = new Envelope("CONNECT");
+			output.writeObject(e);
 			
-			Envelope e = (Envelope)input.readObject();
+			e = (Envelope)input.readObject();
 			if(e.getMessage().equals("PUBLICKEY"))
 			{
 				serverKey = (PublicKey) e.getObjContents().get(0);
