@@ -3,7 +3,6 @@ import java.net.UnknownHostException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException; 
 import java.security.PublicKey;
-import java.util.Arrays;
 import java.util.Random;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -29,12 +28,8 @@ public abstract class Client {
 	protected SecretKey sessionKey;
 	protected SecretKeySpec sessionKeySpec;
 	private Random rand;
-<<<<<<< HEAD
-
-=======
 	private Cipher aesCipher;
 	
->>>>>>> netsec/master
 	//set up keys and random number generator
 	Client() {
 		rand = new Random();
@@ -65,55 +60,38 @@ public abstract class Client {
 
 		try {						
 			sock = new Socket(server, port);
-
+			
 			output = new ObjectOutputStream(sock.getOutputStream());
 			input = new ObjectInputStream(sock.getInputStream());
-<<<<<<< HEAD
-
-			Envelope e = new Envelope("CONNECT");
-			output.writeObject(e);
-
-=======
 			Envelope e = new Envelope("CONNECT");
 			output.writeObject(e);
 			
->>>>>>> netsec/master
 			e = (Envelope)input.readObject();
 			if(e.getMessage().equals("PUBLICKEY"))
+			{
 				serverKey = (PublicKey) e.getObjContents().get(0);
+			}
 			byte[] value = new byte[4];
 			rand.nextBytes(value);
-<<<<<<< HEAD
-			ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
-			outputStream.write(value);
-			outputStream.write(sessionKey.getEncoded());
-
-			byte[] message = outputStream.toByteArray();
-
-			Cipher cipher = Cipher.getInstance("RSA");
-			cipher.init(Cipher.ENCRYPT_MODE, serverKey);
-			byte[] encrypted = cipher.doFinal(message);
-
-=======
 			
 			
 			Cipher cipher = Cipher.getInstance("RSA");
 			cipher.init(Cipher.ENCRYPT_MODE, serverKey);
 			
->>>>>>> netsec/master
 			e = new Envelope("SESSIONKEY");
 			e.addObject(cipher.doFinal(value));
 			e.addObject(cipher.doFinal(sessionKey.getEncoded()));
 			output.writeObject(e);
-
+			
 			e = (Envelope)input.readObject();
-
-			if(e.getMessage().equals("AUTHVALUE"))
-			{
-				if(Arrays.equals(((byte[])e.getObjContents().get(0)), value))
+			
+			if(e.getMessage().equals("AUTHVALUE")){
+				if(e.getObjContents().get(0).toString().equals(value.toString())){
 					return sock.isConnected();
-				else
+				}
+				else{
 					return false;
+				}
 			}
 		} catch (UnknownHostException e) {
 			System.out.println("host was not found");

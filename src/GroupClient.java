@@ -9,11 +9,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 	GroupClient(){
 		super();
 	}
-<<<<<<< HEAD
-	 public UserToken getToken(String username, String password)
-=======
 	 public byte[] getToken(String username,String password)
->>>>>>> netsec/master
 	 {
 		try
 		{
