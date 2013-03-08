@@ -5,7 +5,7 @@ public class RunFileServer {
 	public static void main(String[] args) {
 		if (args.length > 0) {
 			try {
-				FileServer server = new FileServer(args[0], Integer.parseInt(args[1]), null);
+				FileServer server = new FileServer(args[0], Integer.parseInt(args[1]));
 				server.start();
 			}
 			catch (NumberFormatException e) {
