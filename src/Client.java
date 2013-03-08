@@ -4,7 +4,6 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException; 
 import java.security.PublicKey;
 import java.util.Random;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -32,14 +31,28 @@ public abstract class Client {
 	private Cipher aesCipher;
 	
 	//set up keys and random number generator
-	Client() throws NoSuchAlgorithmException, NoSuchPaddingException{
+	Client() {
 		rand = new Random();
-		KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+		KeyGenerator keyGen = null;
+		try {
+			keyGen = KeyGenerator.getInstance("AES");
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		//128 bit key length
 		keyGen.init(128);
 		sessionKey = keyGen.generateKey();
 		sessionKeySpec = new SecretKeySpec(sessionKey.getEncoded(),"AES");
-		aesCipher = Cipher.getInstance("AES");
+		try {
+			aesCipher = Cipher.getInstance("AES");
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	public boolean connect(final String server, final int port) {
@@ -110,14 +123,42 @@ public abstract class Client {
 		}
 	}
 	
-	public byte[] encryptAES(byte[] message) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
-		aesCipher.init(Cipher.ENCRYPT_MODE, sessionKeySpec);
-		return aesCipher.doFinal(message);
+	public byte[] encryptAES(byte[] message) {
+		try {
+			aesCipher.init(Cipher.ENCRYPT_MODE, sessionKeySpec);
+		} catch (InvalidKeyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		try {
+			return aesCipher.doFinal(message);
+		} catch (IllegalBlockSizeException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (BadPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
 	}
 	
-	public byte[] decryptAES(byte[] message) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
-		aesCipher.init(Cipher.DECRYPT_MODE, sessionKeySpec);
-		return aesCipher.doFinal(message);
+	public byte[] decryptAES(byte[] message){
+		try {
+			aesCipher.init(Cipher.DECRYPT_MODE, sessionKeySpec);
+		} catch (InvalidKeyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		try {
+			return aesCipher.doFinal(message);
+		} catch (IllegalBlockSizeException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (BadPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
 	}
 	
 }

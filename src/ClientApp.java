@@ -11,6 +11,7 @@ import java.awt.event.*;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
+import javax.crypto.NoSuchPaddingException;
 import javax.swing.*;
 
 public class ClientApp extends JFrame implements WindowListener
@@ -23,14 +24,14 @@ public class ClientApp extends JFrame implements WindowListener
 	private GroupClientInterface gc;
 	private FileClientInterface fc;
 
-	private UserToken myToken;
+	private byte[] myToken;
 
-	public static void main(String[] args) throws NoSuchAlgorithmException
+	public static void main(String[] args) throws NoSuchAlgorithmException, NoSuchPaddingException
 	{
 		new ClientApp();
 	}
 
-	public ClientApp() throws NoSuchAlgorithmException
+	public ClientApp() throws NoSuchAlgorithmException, NoSuchPaddingException
 	{
 		super("Group-File Client Application");
 

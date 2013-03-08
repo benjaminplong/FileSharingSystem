@@ -2,6 +2,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Scanner;
 
+import javax.crypto.NoSuchPaddingException;
+
 //author: Ben Long
 
 public class ClientCmd {
@@ -9,16 +11,16 @@ public class ClientCmd {
 	private GroupClientInterface gc;
 	private FileClientInterface fc;
 
-	private UserToken myToken;
+	private byte[] myToken;
 	private Scanner input;
 
-	public static void main(String[] args) throws NoSuchAlgorithmException {
+	public static void main(String[] args) throws NoSuchAlgorithmException, NoSuchPaddingException {
 		new ClientCmd();
 
 	}
 	
 	// default constructor for command line client application
-	ClientCmd() throws NoSuchAlgorithmException{
+	ClientCmd() throws NoSuchAlgorithmException, NoSuchPaddingException{
 		gc = new GroupClient();
 		fc = new FileClient();
 		input = new Scanner(System.in);

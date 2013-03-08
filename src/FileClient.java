@@ -4,16 +4,17 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
+
+import java.util.ArrayList;
 import java.util.List;
 
 public class FileClient extends Client implements FileClientInterface {
 
 	
-	FileClient() throws NoSuchAlgorithmException{
+	FileClient(){
 		super();
 	}
-	public boolean delete(String filename, UserToken token) {
+	public boolean delete(String filename, byte[] token) {
 		String remotePath;
 		if (filename.charAt(0)=='/') {
 			remotePath = filename.substring(1);
@@ -22,11 +23,33 @@ public class FileClient extends Client implements FileClientInterface {
 			remotePath = filename;
 		}
 		Envelope env = new Envelope("DELETEF"); //Success
-	    env.addObject(remotePath);
-	    env.addObject(token);
 	    try {
-			output.writeObject(env);
-		    env = (Envelope)input.readObject();
+			env.addObject(encryptAES(remotePath.getBytes()));
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+	    try {
+			env.addObject(encryptAES(token));
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+			try {
+				output.writeObject(env);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		    try {
+				env = (Envelope)input.readObject();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (ClassNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		    
 			if (env.getMessage().compareTo("OK")==0) {
 				System.out.printf("File %s deleted successfully\n", filename);				
@@ -35,16 +58,11 @@ public class FileClient extends Client implements FileClientInterface {
 				System.out.printf("Error deleting file %s (%s)\n", filename, env.getMessage());
 				return false;
 			}			
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		} catch (ClassNotFoundException e1) {
-			e1.printStackTrace();
-		}
 	    	
 		return true;
 	}
 
-	public boolean download(String sourceFile, String destFile, UserToken token) {
+	public boolean download(String sourceFile, String destFile, byte[] token) {
 				if (sourceFile.charAt(0)=='/') {
 					sourceFile = sourceFile.substring(1);
 				}
@@ -58,14 +76,15 @@ public class FileClient extends Client implements FileClientInterface {
 					    FileOutputStream fos = new FileOutputStream(file);
 					    
 					    Envelope env = new Envelope("DOWNLOADF"); //Success
-					    env.addObject(sourceFile);
-					    env.addObject(token);
+					    env.addObject(encryptAES(sourceFile.getBytes()));
+					    env.addObject(encryptAES(token));
 					    output.writeObject(env); 
 					
 					    env = (Envelope)input.readObject();
 					    
 						while (env.getMessage().compareTo("CHUNK")==0) { 
-								fos.write((byte[])env.getObjContents().get(0), 0, (Integer)env.getObjContents().get(1));
+							//TODO: do something about plain number passing
+								fos.write(decryptAES((byte[])env.getObjContents().get(0)), 0, (Integer)env.getObjContents().get(1));
 								System.out.printf(".");
 								env = new Envelope("DOWNLOADF"); //Success
 								output.writeObject(env);
@@ -106,13 +125,13 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	@SuppressWarnings("unchecked")
-	public List<String> listFiles(UserToken token) {
+	public List<String> listFiles(byte[] token) {
 		 try
 		 {
 			 Envelope message = null, e = null;
 			 //Tell the server to return the member list
 			 message = new Envelope("LFILES");
-			 message.addObject(token); //Add requester's token
+			 message.addObject(encryptAES(token)); //Add requester's token
 			 output.writeObject(message); 
 			 
 			 e = (Envelope)input.readObject();
@@ -120,7 +139,14 @@ public class FileClient extends Client implements FileClientInterface {
 			 //If server indicates success, return the member list
 			 if(e.getMessage().equals("OK"))
 			 { 
-				return (List<String>)e.getObjContents().get(0); //This cast creates compiler warnings. Sorry.
+				ArrayList<String> encryptedList = (ArrayList<String>)e.getObjContents().get(0); //This cast creates compiler warnings. Sorry.
+				ArrayList<String> decryptedList = new ArrayList<String>();
+				
+				for(String string : encryptedList){
+					decryptedList.add(decryptAES(string.getBytes()).toString());
+				}
+				
+				return decryptedList;
 			 }
 				
 			 return null;
@@ -135,7 +161,7 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean upload(String sourceFile, String destFile, String group,
-			UserToken token) {
+			byte[] token) {
 			
 		if (destFile.charAt(0)!='/') {
 			 destFile = "/" + destFile;
@@ -147,9 +173,9 @@ public class FileClient extends Client implements FileClientInterface {
 			 Envelope message = null, env = null;
 			 //Tell the server to return the member list
 			 message = new Envelope("UPLOADF");
-			 message.addObject(destFile);
-			 message.addObject(group);
-			 message.addObject(token); //Add requester's token
+			 message.addObject(encryptAES(destFile.getBytes()));
+			 message.addObject(encryptAES(group.getBytes()));
+			 message.addObject(encryptAES(token)); //Add requester's token
 			 output.writeObject(message);
 			
 			 
@@ -188,7 +214,8 @@ public class FileClient extends Client implements FileClientInterface {
 						return false;
 					}
 					
-					message.addObject(buf);
+					message.addObject(encryptAES(buf));
+					//TODO: do something about plain number passing
 					message.addObject(new Integer(n));
 					
 					output.writeObject(message);
