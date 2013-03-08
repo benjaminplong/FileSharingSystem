@@ -26,38 +26,33 @@ public class FileClient extends Client implements FileClientInterface {
 	    try {
 			env.addObject(encryptAES(remotePath.getBytes()));
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} 
 	    try {
 			env.addObject(encryptAES(token));
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-			try {
-				output.writeObject(env);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		    try {
-				env = (Envelope)input.readObject();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (ClassNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		    
-			if (env.getMessage().compareTo("OK")==0) {
-				System.out.printf("File %s deleted successfully\n", filename);				
-			}
-			else {
-				System.out.printf("Error deleting file %s (%s)\n", filename, env.getMessage());
-				return false;
-			}			
+		try {
+			output.writeObject(env);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	    try {
+			env = (Envelope)input.readObject();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}
+	    
+		if (env.getMessage().compareTo("OK")==0) {
+			System.out.printf("File %s deleted successfully\n", filename);				
+		}
+		else {
+			System.out.printf("Error deleting file %s (%s)\n", filename, env.getMessage());
+			return false;
+		}			
 	    	
 		return true;
 	}
