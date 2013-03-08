@@ -15,3 +15,5 @@ Note that this implementation supports server side directories.
 To start the Client Interface Application: java ClientApp
 This should start a GUI application on the client machine that will allow the user to connect with a group server and a file server to perform the desired actions.
 
+To start the Client Interface Application in the command line form: java ClientCmd
+This should start a command line interface for the system that a user can use. Typing "help" will display a list of all possible commands for the system.
