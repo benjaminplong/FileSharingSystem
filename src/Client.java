@@ -1,5 +1,6 @@
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException; 
 import java.security.PublicKey;
 import java.util.Random;
@@ -8,9 +9,13 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyGenerator;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 public abstract class Client {
 
@@ -22,15 +27,19 @@ public abstract class Client {
 	protected ObjectInputStream input;
 	protected PublicKey serverKey;
 	protected SecretKey sessionKey;
+	protected SecretKeySpec sessionKeySpec;
 	private Random rand;
+	private Cipher aesCipher;
 	
 	//set up keys and random number generator
-	Client() throws NoSuchAlgorithmException{
+	Client() throws NoSuchAlgorithmException, NoSuchPaddingException{
 		rand = new Random();
 		KeyGenerator keyGen = KeyGenerator.getInstance("AES");
 		//128 bit key length
 		keyGen.init(128);
 		sessionKey = keyGen.generateKey();
+		sessionKeySpec = new SecretKeySpec(sessionKey.getEncoded(),"AES");
+		aesCipher = Cipher.getInstance("AES");
 	}
 
 	public boolean connect(final String server, final int port) {
@@ -51,18 +60,14 @@ public abstract class Client {
 			}
 			byte[] value = new byte[4];
 			rand.nextBytes(value);
-			ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
-			outputStream.write(value);
-			outputStream.write(sessionKey.getEncoded());
-
-			byte[] message = outputStream.toByteArray();
+			
 			
 			Cipher cipher = Cipher.getInstance("RSA");
 			cipher.init(Cipher.ENCRYPT_MODE, serverKey);
-			byte[] encrypted = cipher.doFinal(message);
 			
 			e = new Envelope("SESSIONKEY");
-			e.addObject(encrypted);
+			e.addObject(cipher.doFinal(value));
+			e.addObject(cipher.doFinal(sessionKey.getEncoded()));
 			output.writeObject(e);
 			
 			e = (Envelope)input.readObject();
@@ -104,4 +109,15 @@ public abstract class Client {
 			}
 		}
 	}
+	
+	public byte[] encryptAES(byte[] message) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
+		aesCipher.init(Cipher.ENCRYPT_MODE, sessionKeySpec);
+		return aesCipher.doFinal(message);
+	}
+	
+	public byte[] decryptAES(byte[] message) throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
+		aesCipher.init(Cipher.DECRYPT_MODE, sessionKeySpec);
+		return aesCipher.doFinal(message);
+	}
+	
 }
