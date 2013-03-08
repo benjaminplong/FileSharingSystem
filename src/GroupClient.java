@@ -1,25 +1,29 @@
 /* Implements the GroupClient Interface */
 
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class GroupClient extends Client implements GroupClientInterface {
  
 	
-	GroupClient() throws NoSuchAlgorithmException{
+	GroupClient(){
 		super();
 	}
+<<<<<<< HEAD
 	 public UserToken getToken(String username, String password)
+=======
+	 public byte[] getToken(String username,String password)
+>>>>>>> netsec/master
 	 {
 		try
 		{
-			UserToken token = null;
+			byte[] token;
 			Envelope message = null, response = null;
-		 		 	
+			
 			//Tell the server to return a token.
 			message = new Envelope("GET");
-			message.addObject(username); //Add user name string
+			message.addObject(encryptAES(username.getBytes())); //Add user name string
+			message.addObject(encryptAES(password.getBytes()));
 			output.writeObject(message);
 		
 			//Get the response from the server
@@ -34,7 +38,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				
 				if(temp.size() == 1)
 				{
-					token = (UserToken)temp.get(0);
+					token = decryptAES(temp.get(0).toString().getBytes());
 					return token;
 				}
 			}
@@ -50,15 +54,16 @@ public class GroupClient extends Client implements GroupClientInterface {
 		
 	 }
 	 
-	 public boolean createUser(String username, String password, UserToken token)
+	 public boolean createUser(String username, String password, byte[] token)
 	 {
 		 try
 			{
 				Envelope message = null, response = null;
 				//Tell the server to create a user
 				message = new Envelope("CUSER");
-				message.addObject(username); //Add user name string
-				message.addObject(token); //Add the requester's token
+				message.addObject(encryptAES(username.getBytes())); //Add user name string
+				message.addObject(encryptAES(password.getBytes()));
+				message.addObject(encryptAES(token));
 				output.writeObject(message);
 			
 				response = (Envelope)input.readObject();
@@ -79,7 +84,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 			}
 	 }
 	 
-	 public boolean deleteUser(String username, UserToken token)
+	 public boolean deleteUser(String username, byte[] token)
 	 {
 		 try
 			{
@@ -87,8 +92,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 			 
 				//Tell the server to delete a user
 				message = new Envelope("DUSER");
-				message.addObject(username); //Add user name
-				message.addObject(token);  //Add requester's token
+				message.addObject(encryptAES(username.getBytes())); //Add user name
+				message.addObject(encryptAES(token));  //Add requester's token
 				output.writeObject(message);
 			
 				response = (Envelope)input.readObject();
@@ -109,15 +114,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 			}
 	 }
 	 
-	 public boolean createGroup(String groupname, UserToken token)
+	 public boolean createGroup(String groupname, byte[] token)
 	 {
 		 try
 			{
 				Envelope message = null, response = null;
 				//Tell the server to create a group
 				message = new Envelope("CGROUP");
-				message.addObject(groupname); //Add the group name string
-				message.addObject(token); //Add the requester's token
+				message.addObject(encryptAES(groupname.getBytes())); //Add the group name string
+				message.addObject(encryptAES(token)); //Add the requester's token
 				output.writeObject(message); 
 			
 				response = (Envelope)input.readObject();
@@ -138,15 +143,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 			}
 	 }
 	 
-	 public boolean deleteGroup(String groupname, UserToken token)
+	 public boolean deleteGroup(String groupname, byte[] token)
 	 {
 		 try
 			{
 				Envelope message = null, response = null;
 				//Tell the server to delete a group
 				message = new Envelope("DGROUP");
-				message.addObject(groupname); //Add group name string
-				message.addObject(token); //Add requester's token
+				message.addObject(encryptAES(groupname.getBytes())); //Add group name string
+				message.addObject(encryptAES(token)); //Add requester's token
 				output.writeObject(message); 
 			
 				response = (Envelope)input.readObject();
@@ -167,15 +172,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 	 }
 	 
 	 @SuppressWarnings("unchecked")
-	public List<String> listMembers(String group, UserToken token)
+	public List<String> listMembers(String group, byte[] token)
 	 {
 		 try
 		 {
 			 Envelope message = null, response = null;
 			 //Tell the server to return the member list
 			 message = new Envelope("LMEMBERS");
-			 message.addObject(group); //Add group name string
-			 message.addObject(token); //Add requester's token
+			 message.addObject(encryptAES(group.getBytes())); //Add group name string
+			 message.addObject(encryptAES(token)); //Add requester's token
 			 output.writeObject(message); 
 			 
 			 response = (Envelope)input.readObject();
@@ -197,16 +202,16 @@ public class GroupClient extends Client implements GroupClientInterface {
 			}
 	 }
 	 
-	 public boolean addUserToGroup(String username, String groupname, UserToken token)
+	 public boolean addUserToGroup(String username, String groupname, byte[] token)
 	 {
 		 try
 			{
 				Envelope message = null, response = null;
 				//Tell the server to add a user to the group
 				message = new Envelope("AUSERTOGROUP");
-				message.addObject(username); //Add user name string
-				message.addObject(groupname); //Add group name string
-				message.addObject(token); //Add requester's token
+				message.addObject(encryptAES(username.getBytes())); //Add user name string
+				message.addObject(encryptAES(groupname.getBytes())); //Add group name string
+				message.addObject(encryptAES(token)); //Add requester's token
 				output.writeObject(message); 
 			
 				response = (Envelope)input.readObject();
@@ -226,16 +231,16 @@ public class GroupClient extends Client implements GroupClientInterface {
 			}
 	 }
 	 
-	 public boolean deleteUserFromGroup(String username, String groupname, UserToken token)
+	 public boolean deleteUserFromGroup(String username, String groupname, byte[] token)
 	 {
 		 try
 			{
 				Envelope message = null, response = null;
 				//Tell the server to remove a user from the group
 				message = new Envelope("RUSERFROMGROUP");
-				message.addObject(username); //Add user name string
-				message.addObject(groupname); //Add group name string
-				message.addObject(token); //Add requester's token
+				message.addObject(encryptAES(username.getBytes())); //Add user name string
+				message.addObject(encryptAES(groupname.getBytes())); //Add group name string
+				message.addObject(encryptAES(token)); //Add requester's token
 				output.writeObject(message);
 			
 				response = (Envelope)input.readObject();

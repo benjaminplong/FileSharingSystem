@@ -1,17 +1,21 @@
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException; 
 import java.security.PublicKey;
 import java.util.Arrays;
 import java.util.Random;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyGenerator;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 public abstract class Client {
 
@@ -22,16 +26,38 @@ public abstract class Client {
 	protected ObjectOutputStream output;
 	protected ObjectInputStream input;
 	protected PublicKey serverKey;
-	private SecretKey sessionKey;
+	protected SecretKey sessionKey;
+	protected SecretKeySpec sessionKeySpec;
 	private Random rand;
+<<<<<<< HEAD
 
+=======
+	private Cipher aesCipher;
+	
+>>>>>>> netsec/master
 	//set up keys and random number generator
-	Client() throws NoSuchAlgorithmException{
+	Client() {
 		rand = new Random();
-		KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+		KeyGenerator keyGen = null;
+		try {
+			keyGen = KeyGenerator.getInstance("AES");
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		//128 bit key length
 		keyGen.init(128);
 		sessionKey = keyGen.generateKey();
+		sessionKeySpec = new SecretKeySpec(sessionKey.getEncoded(),"AES");
+		try {
+			aesCipher = Cipher.getInstance("AES");
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	public boolean connect(final String server, final int port) {
@@ -42,15 +68,22 @@ public abstract class Client {
 
 			output = new ObjectOutputStream(sock.getOutputStream());
 			input = new ObjectInputStream(sock.getInputStream());
+<<<<<<< HEAD
 
 			Envelope e = new Envelope("CONNECT");
 			output.writeObject(e);
 
+=======
+			Envelope e = new Envelope("CONNECT");
+			output.writeObject(e);
+			
+>>>>>>> netsec/master
 			e = (Envelope)input.readObject();
 			if(e.getMessage().equals("PUBLICKEY"))
 				serverKey = (PublicKey) e.getObjContents().get(0);
 			byte[] value = new byte[4];
 			rand.nextBytes(value);
+<<<<<<< HEAD
 			ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
 			outputStream.write(value);
 			outputStream.write(sessionKey.getEncoded());
@@ -61,8 +94,16 @@ public abstract class Client {
 			cipher.init(Cipher.ENCRYPT_MODE, serverKey);
 			byte[] encrypted = cipher.doFinal(message);
 
+=======
+			
+			
+			Cipher cipher = Cipher.getInstance("RSA");
+			cipher.init(Cipher.ENCRYPT_MODE, serverKey);
+			
+>>>>>>> netsec/master
 			e = new Envelope("SESSIONKEY");
-			e.addObject(encrypted);
+			e.addObject(cipher.doFinal(value));
+			e.addObject(cipher.doFinal(sessionKey.getEncoded()));
 			output.writeObject(e);
 
 			e = (Envelope)input.readObject();
@@ -103,4 +144,43 @@ public abstract class Client {
 			}
 		}
 	}
+	
+	public byte[] encryptAES(byte[] message) {
+		try {
+			aesCipher.init(Cipher.ENCRYPT_MODE, sessionKeySpec);
+		} catch (InvalidKeyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		try {
+			return aesCipher.doFinal(message);
+		} catch (IllegalBlockSizeException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (BadPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	public byte[] decryptAES(byte[] message){
+		try {
+			aesCipher.init(Cipher.DECRYPT_MODE, sessionKeySpec);
+		} catch (InvalidKeyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		try {
+			return aesCipher.doFinal(message);
+		} catch (IllegalBlockSizeException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (BadPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
 }
