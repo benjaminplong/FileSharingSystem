@@ -2,6 +2,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException; 
 import java.security.PublicKey;
+import java.util.Arrays;
 import java.util.Random;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -23,7 +24,7 @@ public abstract class Client {
 	protected PublicKey serverKey;
 	private SecretKey sessionKey;
 	private Random rand;
-	
+
 	//set up keys and random number generator
 	Client() throws NoSuchAlgorithmException{
 		rand = new Random();
@@ -38,15 +39,16 @@ public abstract class Client {
 
 		try {						
 			sock = new Socket(server, port);
-			
+
 			output = new ObjectOutputStream(sock.getOutputStream());
 			input = new ObjectInputStream(sock.getInputStream());
-			
-			Envelope e = (Envelope)input.readObject();
+
+			Envelope e = new Envelope("CONNECT");
+			output.writeObject(e);
+
+			e = (Envelope)input.readObject();
 			if(e.getMessage().equals("PUBLICKEY"))
-			{
 				serverKey = (PublicKey) e.getObjContents().get(0);
-			}
 			byte[] value = new byte[4];
 			rand.nextBytes(value);
 			ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
@@ -54,24 +56,23 @@ public abstract class Client {
 			outputStream.write(sessionKey.getEncoded());
 
 			byte[] message = outputStream.toByteArray();
-			
+
 			Cipher cipher = Cipher.getInstance("RSA");
 			cipher.init(Cipher.ENCRYPT_MODE, serverKey);
 			byte[] encrypted = cipher.doFinal(message);
-			
+
 			e = new Envelope("SESSIONKEY");
 			e.addObject(encrypted);
 			output.writeObject(e);
-			
+
 			e = (Envelope)input.readObject();
-			
-			if(e.getMessage().equals("AUTHVALUE")){
-				if(e.getObjContents().get(0).toString().equals(value.toString())){
+
+			if(e.getMessage().equals("AUTHVALUE"))
+			{
+				if(Arrays.equals(((byte[])e.getObjContents().get(0)), value))
 					return sock.isConnected();
-				}
-				else{
+				else
 					return false;
-				}
 			}
 		} catch (UnknownHostException e) {
 			System.out.println("host was not found");

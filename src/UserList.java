@@ -104,6 +104,8 @@ public class UserList implements java.io.Serializable {
 		 */
 		private static final long serialVersionUID = -6699986336399821598L;
 		private String name;
+		private int salt;
+		private int passHash;
 		private ArrayList<String> groups;
 		private ArrayList<String> ownership;
 

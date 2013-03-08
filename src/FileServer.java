@@ -9,6 +9,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.PublicKey;
 
 public class FileServer extends Server {
 
@@ -16,13 +17,17 @@ public class FileServer extends Server {
 
 	public static final int SERVER_PORT = 4321;
 	public static FileList fileList;
+	
+	protected final PublicKey groupKey;
 
 	public FileServer() {
 		super(SERVER_PORT, "FilePile");
+		groupKey = null;
 	}
 
-	public FileServer(String _server, int _port) {
+	public FileServer(String _server, int _port, PublicKey _groupKey) {
 		super(_port, _server);
+		groupKey = _groupKey;
 	}
 
 	public void start() {
@@ -90,7 +95,8 @@ public class FileServer extends Server {
 			while(running)
 			{
 				sock = serverSock.accept();
-				thread = new FileThread(sock, null); // TODO: add public key shit
+				// initialize thread with our RSA keys and the trusted server
+				thread = new FileThread(sock, this);
 				thread.start();
 			}
 

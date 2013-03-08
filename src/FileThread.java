@@ -4,7 +4,6 @@
 
 import java.lang.Thread;
 import java.net.Socket;
-import java.security.PublicKey;
 import java.util.ArrayList;
 import java.io.File;
 import java.io.FileInputStream;
@@ -12,15 +11,20 @@ import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
 public class FileThread extends Thread
 {
 	private final Socket socket;
-	private final PublicKey publicKey;
+	private FileServer my_fs;
+	private SecretKey sessionKey;
 
-	public FileThread(Socket _socket, PublicKey _publicKey)
+	public FileThread(Socket _socket, FileServer fs)
 	{
 		socket = _socket;
-		publicKey = _publicKey;
+		my_fs = fs;
 	}
 
 	public void run()
@@ -32,24 +36,54 @@ public class FileThread extends Thread
 			final ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
 			final ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
 			Envelope response;
-			
-			// alert the user of the file servers public key on connect
-			response = new Envelope("PUBLICKEY");
-			response.addObject(publicKey);
-			output.writeObject(response);
+
+			Cipher rsaCipher = Cipher.getInstance("RSA");
+			Cipher aesCipher = Cipher.getInstance("AES");
+			byte[] decrypted;
+			byte[] encrypted;
 
 			do
 			{
 				Envelope e = (Envelope)input.readObject();
 				System.out.println("Request received: " + e.getMessage());
 
-				// Handler to list files that this user is allowed to see
-				if(e.getMessage().equals("LFILES"))
+				if(e.getMessage().equals("CONNECT"))//Client wants a token
 				{
-					ArrayList<String> files = new ArrayList<String>();
+					// alert the user of the file servers public key on connect
+					response = new Envelope("PUBLICKEY");
+					response.addObject(my_fs.RSAkeys.getPublic());
+					output.writeObject(response);
+				}
+				else if (e.getMessage().equals("SESSIONKEY"))
+				{
+					// initialize your cipher
+					rsaCipher.init(Cipher.DECRYPT_MODE, my_fs.RSAkeys.getPrivate());
+					decrypted = rsaCipher.doFinal((byte[]) e.getObjContents().get(0));
 
-					Token t = (Token)e.getObjContents().get(0);
+					// return the random number to the client
+					response = new Envelope("AUTHVALUE");
+					response.addObject(decrypted);
+					output.writeObject(response);
+
+					decrypted = rsaCipher.doFinal((byte[]) e.getObjContents().get(1));
+
+					sessionKey = new SecretKeySpec(decrypted, "AES");
+				}
+				// Handler to list files that this user is allowed to see
+				else if(e.getMessage().equals("LFILES"))
+				{
+					decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(0));
+					rsaCipher.init(Cipher.DECRYPT_MODE, my_fs.groupKey);
+					decrypted = rsaCipher.doFinal(decrypted);
+
+					String tokenParts = new String(decrypted);
+					UserToken t = new Token(tokenParts); //Extract the token
+
 					ArrayList<String> groups = (ArrayList<String>) t.getGroups();
+
+					aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
+
+					response = new Envelope("OK");
 
 					for (ShareFile f : FileServer.fileList.getFiles())
 					{
@@ -57,13 +91,12 @@ public class FileThread extends Thread
 						{
 							if (f.getGroup().equals(g))
 							{
-								files.add(f.getPath());
+								encrypted = aesCipher.doFinal(f.getPath().getBytes());
+								response.addObject(encrypted);
 							}
 						}
 					}
-					
-					response = new Envelope("OK");
-					response.addObject(files);
+
 					output.writeObject(response);
 				}
 				else if(e.getMessage().equals("UPLOADF"))
@@ -85,9 +118,21 @@ public class FileThread extends Thread
 							response = new Envelope("FAIL-BADTOKEN");
 						}
 						else {
-							String remotePath = (String)e.getObjContents().get(0);
-							String group = (String)e.getObjContents().get(1);
-							UserToken yourToken = (UserToken)e.getObjContents().get(2); //Extract token
+
+							aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
+
+							decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(0));
+							String remotePath = new String(decrypted); // Extract the remotePath
+
+							decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(1));
+							String group = new String(decrypted); // Extract the group
+
+							decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(2));
+							rsaCipher.init(Cipher.DECRYPT_MODE, my_fs.groupKey);
+							decrypted = rsaCipher.doFinal(decrypted);
+
+							String tokenParts = new String(decrypted);
+							UserToken yourToken = new Token(tokenParts); //Extract the token
 
 							if (FileServer.fileList.checkFile(remotePath)) {
 								System.out.printf("Error: file already exists at %s\n", remotePath);
@@ -108,7 +153,8 @@ public class FileThread extends Thread
 
 								e = (Envelope)input.readObject();
 								while (e.getMessage().compareTo("CHUNK")==0) {
-									fos.write((byte[])e.getObjContents().get(0), 0, (Integer)e.getObjContents().get(1));
+									decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(0));
+									fos.write(decrypted, 0, (Integer)e.getObjContents().get(1));
 									response = new Envelope("READY"); //Success
 									output.writeObject(response);
 									e = (Envelope)input.readObject();
@@ -132,8 +178,18 @@ public class FileThread extends Thread
 				}
 				else if (e.getMessage().compareTo("DOWNLOADF")==0) {
 
-					String remotePath = (String)e.getObjContents().get(0);
-					Token t = (Token)e.getObjContents().get(1);
+					aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
+
+					decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(0));
+					String remotePath = new String(decrypted); // Extract the remotePath
+
+					decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(1));
+					rsaCipher.init(Cipher.DECRYPT_MODE, my_fs.groupKey);
+					decrypted = rsaCipher.doFinal(decrypted);
+
+					String tokenParts = new String(decrypted);
+					UserToken t = new Token(tokenParts); //Extract the token
+
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
@@ -160,6 +216,8 @@ public class FileThread extends Thread
 							else {
 								FileInputStream fis = new FileInputStream(f);
 
+								aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
+
 								do {
 									byte[] buf = new byte[4096];
 									if (e.getMessage().compareTo("DOWNLOADF")!=0) {
@@ -175,8 +233,9 @@ public class FileThread extends Thread
 
 									}
 
+									encrypted = aesCipher.doFinal(buf);
 
-									e.addObject(buf);
+									e.addObject(encrypted);
 									e.addObject(new Integer(n));
 
 									output.writeObject(e);
@@ -186,7 +245,7 @@ public class FileThread extends Thread
 
 								}
 								while (fis.available()>0);
-								
+
 								fis.close();
 
 								//If server indicates success, return the member list
@@ -224,8 +283,18 @@ public class FileThread extends Thread
 				}
 				else if (e.getMessage().compareTo("DELETEF")==0) {
 
-					String remotePath = (String)e.getObjContents().get(0);
-					Token t = (Token)e.getObjContents().get(1);
+					aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
+
+					decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(0));
+					String remotePath = new String(decrypted); // Extract the remotePath
+
+					decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(1));
+					rsaCipher.init(Cipher.DECRYPT_MODE, my_fs.groupKey);
+					decrypted = rsaCipher.doFinal(decrypted);
+
+					String tokenParts = new String(decrypted);
+					UserToken t = new Token(tokenParts); //Extract the token
+
 					ShareFile sf = FileServer.fileList.getFile("/"+remotePath);
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
@@ -239,8 +308,6 @@ public class FileThread extends Thread
 
 						try
 						{
-
-
 							File f = new File("shared_files/"+"_"+remotePath.replace('/', '_'));
 
 							if (!f.exists()) {

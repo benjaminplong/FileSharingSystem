@@ -80,12 +80,15 @@ public class GroupServer extends Server {
 			
 			final ServerSocket serverSock = new ServerSocket(port);
 			
+			createRSAKeyPair();
+			
 			Socket sock = null;
 			GroupThread thread = null;
 			
 			while(running)
 			{
 				sock = serverSock.accept();
+				// initialize thread with our RSA keys and the trusted server
 				thread = new GroupThread(sock, this);
 				thread.start();
 			}

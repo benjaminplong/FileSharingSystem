@@ -10,7 +10,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 	GroupClient() throws NoSuchAlgorithmException{
 		super();
 	}
-	 public UserToken getToken(String username,String password)
+	 public UserToken getToken(String username, String password)
 	 {
 		try
 		{

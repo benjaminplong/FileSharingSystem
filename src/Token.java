@@ -1,5 +1,6 @@
-import java.util.ArrayList;
+
 import java.util.List;
+import java.util.TreeSet;
 
 /**
  * 
@@ -18,13 +19,23 @@ public class Token implements UserToken, java.io.Serializable {
 	
 	private String _server;
 	private String _username;
-	private ArrayList<String> _groups; 
+	private TreeSet<String> _groups; 
 
 	@SuppressWarnings("unchecked")
-	public Token(String name, String username, ArrayList<String> userGroups) {
+	public Token(String name, String username, TreeSet<String> userGroups) {
 		_server = name;
 		_username = username;
-		_groups = (ArrayList<String>) userGroups.clone();
+		_groups = (TreeSet<String>) userGroups.clone();
+	}
+	
+	public Token(String parts) {
+		String[] fields = parts.split(",");
+		_server = fields[0];
+		_username = fields[1];
+		_groups = new TreeSet<String>();
+		
+		for (int i = 2; i <fields.length; ++i)
+			_groups.add(fields[i]);
 	}
 
 	/* (non-Javadoc)

@@ -6,10 +6,15 @@ import java.net.Socket;
 import java.io.*;
 import java.util.*;
 
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
 public class GroupThread extends Thread 
 {
 	private final Socket socket;
 	private GroupServer my_gs;
+	private SecretKey sessionKey;
 
 	public GroupThread(Socket _socket, GroupServer _gs)
 	{
@@ -27,31 +32,56 @@ public class GroupThread extends Thread
 			System.out.println("*** New connection from " + socket.getInetAddress() + ":" + socket.getPort() + "***");
 			final ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
 			final ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
+			Envelope response;
+
+			Cipher rsaCipher = Cipher.getInstance("RSA");
+			Cipher aesCipher = Cipher.getInstance("AES");
+			byte[] decrypted;
+			byte[] encrypted;
 
 			do
 			{
 				Envelope message = (Envelope)input.readObject();
 				System.out.println("Request received: " + message.getMessage());
-				Envelope response;
-
-				if(message.getMessage().equals("GET"))//Client wants a token
+				
+				if(message.getMessage().equals("CONNECT"))//Client wants a token
 				{
-					String username = (String)message.getObjContents().get(0); //Get the username
-					if(username == null)
-					{
-						response = new Envelope("FAIL");
-						response.addObject(null);
-						output.writeObject(response);
-					}
-					else
-					{
-						UserToken yourToken = createToken(username); //Create a token
+					// alert the user of the file servers public key on connect
+					response = new Envelope("PUBLICKEY");
+					response.addObject(my_gs.RSAkeys.getPublic());
+					output.writeObject(response);
+				}
+				else if (message.getMessage().equals("SESSIONKEY"))
+				{
+					// initialize your cipher
+					rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPrivate());
+					decrypted = rsaCipher.doFinal((byte[]) message.getObjContents().get(0));
 
-						//Respond to the client. On error, the client will receive a null token
-						response = new Envelope("OK");
-						response.addObject(yourToken);
-						output.writeObject(response);
-					}
+					// return the random number to the client
+					response = new Envelope("AUTHVALUE");
+					response.addObject(decrypted);
+					output.writeObject(response);
+
+					decrypted = rsaCipher.doFinal((byte[]) message.getObjContents().get(1));
+
+					sessionKey = new SecretKeySpec(decrypted, "AES");
+				}
+				else if(message.getMessage().equals("GET"))//Client wants a token
+				{
+					decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
+					String username = new String(decrypted); //Get the username
+					
+					decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
+					String password = new String(decrypted); //Get the password
+
+					// TODO: create token and store salted passwords
+					
+					UserToken yourToken = createToken(username); //Create a token
+
+					//Respond to the client. On error, the client will receive a null token
+					response = new Envelope("OK");
+					response.addObject(yourToken);
+					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("CUSER")) //Client wants to create a user
 				{
@@ -67,8 +97,17 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String username = (String)message.getObjContents().get(0); //Extract the username
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
+								
+								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
+								String username = new String(decrypted); // Extract the username
+								
+								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
+								rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
+								decrypted = rsaCipher.doFinal(decrypted);
+								
+								String tokenParts = new String(decrypted);
+								UserToken yourToken = new Token(tokenParts); //Extract the token
 
 								if(createUser(username, yourToken))
 								{
@@ -95,8 +134,17 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String username = (String)message.getObjContents().get(0); //Extract the username
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
+								
+								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
+								String username = new String(decrypted); // Extract the username
+								
+								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
+								rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
+								decrypted = rsaCipher.doFinal(decrypted);
+								
+								String tokenParts = new String(decrypted);
+								UserToken yourToken = new Token(tokenParts); //Extract the token
 
 								if(deleteUser(username, yourToken))
 								{
@@ -122,8 +170,17 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String groupName = (String)message.getObjContents().get(0); //Extract the group name
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
+								
+								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
+								String groupName = new String(decrypted); // Extract the username
+								
+								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
+								rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
+								decrypted = rsaCipher.doFinal(decrypted);
+								
+								String tokenParts = new String(decrypted);
+								UserToken yourToken = new Token(tokenParts); //Extract the token
 
 								if(createGroup(groupName, yourToken))
 								{
@@ -149,8 +206,17 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String groupName = (String)message.getObjContents().get(0); //Extract the group name
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
+								
+								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
+								String groupName = new String(decrypted); // Extract the username
+								
+								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
+								rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
+								decrypted = rsaCipher.doFinal(decrypted);
+								
+								String tokenParts = new String(decrypted);
+								UserToken yourToken = new Token(tokenParts); //Extract the token
 
 								if(deleteGroup(groupName, yourToken))
 								{
@@ -176,15 +242,31 @@ public class GroupThread extends Thread
 						{
 							if(message.getObjContents().get(1) != null)
 							{
-								String groupName = (String)message.getObjContents().get(0); //Extract the group name
-								UserToken yourToken = (UserToken)message.getObjContents().get(1); //Extract the token
+								aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
+								
+								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
+								String groupName = new String(decrypted); // Extract the username
+								
+								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
+								rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
+								decrypted = rsaCipher.doFinal(decrypted);
+								
+								String tokenParts = new String(decrypted);
+								UserToken yourToken = new Token(tokenParts); //Extract the token
 
 								List<String> members = listMembers(groupName, yourToken);
 
 								if(members != null)
 								{
 									response = new Envelope("OK"); //Success
-									response.addObject(members);
+									
+									aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
+									
+									for (int i = 0; i < members.size(); ++i)
+									{
+										encrypted = aesCipher.doFinal(members.get(i).getBytes());
+										response.addObject(encrypted);
+									}
 								}
 							}
 						}
@@ -208,9 +290,20 @@ public class GroupThread extends Thread
 							{
 								if(message.getObjContents().get(2) != null)
 								{
-									String username = (String)message.getObjContents().get(0); //Extract the username
-									String groupName = (String)message.getObjContents().get(1); //Extract the group name
-									UserToken yourToken = (UserToken)message.getObjContents().get(2); //Extract the token
+									aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
+									
+									decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
+									String username = new String(decrypted); // Extract the username
+									
+									decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
+									String groupName = new String(decrypted); // Extract the groupname
+									
+									decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(2));
+									rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
+									decrypted = rsaCipher.doFinal(decrypted);
+									
+									String tokenParts = new String(decrypted);
+									UserToken yourToken = new Token(tokenParts); //Extract the token
 
 									if(addUserToGroup(username, groupName, yourToken))
 									{
@@ -239,9 +332,20 @@ public class GroupThread extends Thread
 							{
 								if(message.getObjContents().get(2) != null)
 								{
-									String username = (String)message.getObjContents().get(0); //Extract the username
-									String groupName = (String)message.getObjContents().get(1); //Extract the group name
-									UserToken yourToken = (UserToken)message.getObjContents().get(2); //Extract the token
+									aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
+									
+									decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
+									String username = new String(decrypted); // Extract the username
+									
+									decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
+									String groupName = new String(decrypted); // Extract the groupname
+									
+									decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(2));
+									rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
+									decrypted = rsaCipher.doFinal(decrypted);
+									
+									String tokenParts = new String(decrypted);
+									UserToken yourToken = new Token(tokenParts); //Extract the token
 
 									if(deleteUserFromGroup(username, groupName, yourToken))
 									{
@@ -423,7 +527,6 @@ public class GroupThread extends Thread
 			// make sure the requester does not already own this group
 			if(!my_gs.userList.getUserOwnership(requester).contains(group))
 			{
-				// TODO: check to make sure the group does not already exist, owned by someone else
 				my_gs.userList.addGroup(requester, group);
 				my_gs.userList.addOwnership(requester, group);
 
