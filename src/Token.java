@@ -21,11 +21,10 @@ public class Token implements UserToken, java.io.Serializable {
 	private String _username;
 	private TreeSet<String> _groups; 
 
-	@SuppressWarnings("unchecked")
-	public Token(String name, String username, TreeSet<String> userGroups) {
+	public Token(String name, String username, List<String> userGroups) {
 		_server = name;
 		_username = username;
-		_groups = (TreeSet<String>) userGroups.clone();
+		_groups = new TreeSet<String>(userGroups);
 	}
 	
 	public Token(String parts) {
@@ -59,6 +58,16 @@ public class Token implements UserToken, java.io.Serializable {
 	public List<String> getGroups() {
 		// TODO Auto-generated method stub
 		return (List<String>) _groups.clone();
+	}
+
+	@Override
+	public byte[] getBytes() {
+		StringBuilder sb = new StringBuilder();
+		for (String s : getGroups())
+			sb.append(s + ",");
+		sb.deleteCharAt(sb.length()-1);
+		String s = new String(_server + "," + _username + "," + sb.toString());
+		return s.getBytes();
 	}
 
 }
