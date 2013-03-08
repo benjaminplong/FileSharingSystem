@@ -73,14 +73,17 @@ public class GroupThread extends Thread
 					
 					decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
 					String password = new String(decrypted); //Get the password
-
-					// TODO: create token and store salted passwords
 					
-					UserToken yourToken = createToken(username); //Create a token
+					UserToken yourToken = createToken(username, password); //Create a token
 
 					//Respond to the client. On error, the client will receive a null token
 					response = new Envelope("OK");
-					response.addObject(yourToken);
+					
+					aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
+					
+					encrypted = aesCipher.doFinal(yourToken.getBytes());
+					response.addObject(encrypted);
+					
 					output.writeObject(response);
 				}
 				else if(message.getMessage().equals("CUSER")) //Client wants to create a user
@@ -103,13 +106,16 @@ public class GroupThread extends Thread
 								String username = new String(decrypted); // Extract the username
 								
 								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
+								String password = new String(decrypted); // Extract the password
+								
+								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(2));
 								rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
 								decrypted = rsaCipher.doFinal(decrypted);
 								
 								String tokenParts = new String(decrypted);
 								UserToken yourToken = new Token(tokenParts); //Extract the token
 
-								if(createUser(username, yourToken))
+								if(createUser(username, password, yourToken))
 								{
 									response = new Envelope("OK"); //Success
 								}
@@ -378,10 +384,10 @@ public class GroupThread extends Thread
 	}
 
 	//Method to create tokens
-	private UserToken createToken(String username) 
+	private UserToken createToken(String username, String password) 
 	{
-		//Check that user exists
-		if(my_gs.userList.checkUser(username))
+		//Check that user is who he says he is
+		if(my_gs.userList.checkUser(username, password))
 		{
 			//Issue a new token with server's name, user's name, and user's groups
 			UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username));
@@ -395,7 +401,7 @@ public class GroupThread extends Thread
 
 
 	//Method to create a user
-	private boolean createUser(String username, UserToken yourToken)
+	private boolean createUser(String username, String password, UserToken yourToken)
 	{
 		String requester = yourToken.getSubject();
 
@@ -414,7 +420,7 @@ public class GroupThread extends Thread
 				}
 				else
 				{
-					my_gs.userList.addUser(username);
+					my_gs.userList.addUser(username, password);
 					return true;
 				}
 			}

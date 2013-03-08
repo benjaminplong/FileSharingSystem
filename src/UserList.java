@@ -1,5 +1,10 @@
 /* This list represents the users on the server */
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.*;
 
 public class UserList implements java.io.Serializable {
@@ -10,9 +15,9 @@ public class UserList implements java.io.Serializable {
 	private static final long serialVersionUID = 7600343803563417992L;
 	private Hashtable<String, User> list = new Hashtable<String, User>();
 
-	public synchronized void addUser(String username)
+	public synchronized void addUser(String username, String password)
 	{
-		User newUser = new User(username);
+		User newUser = new User(username, password);
 		list.put(username, newUser);
 	}
 
@@ -24,13 +29,20 @@ public class UserList implements java.io.Serializable {
 	public synchronized boolean checkUser(String username)
 	{
 		if(list.containsKey(username))
-		{
 			return true;
-		}
-		else
+		
+		return false;
+	}
+	
+	public synchronized boolean checkUser(String username, String password)
+	{
+		if(list.containsKey(username))
 		{
-			return false;
+			if(list.get(username).correctPassword(password))
+				return true;
 		}
+		
+		return false;
 	}
 
 	public synchronized ArrayList<String> getUserGroups(String username)
@@ -82,18 +94,18 @@ public class UserList implements java.io.Serializable {
 			}
 		}
 	}
-	
+
 	public synchronized List<String> getMembers(String group)
 	{
 		ArrayList<String> users = new ArrayList<String>();
-		
+
 		// remove all users from the group
 		for ( User user : list.values())
 		{
 			if (user.getGroups().contains(group))
 				users.add(user.name);
 		}
-		
+
 		return users;
 	}
 
@@ -104,16 +116,60 @@ public class UserList implements java.io.Serializable {
 		 */
 		private static final long serialVersionUID = -6699986336399821598L;
 		private String name;
-		private int salt;
-		private int passHash;
+		private byte[] salt;
+		private byte[] passHash;
 		private ArrayList<String> groups;
 		private ArrayList<String> ownership;
 
-		public User(String name)
+		public User(String name, String password)
 		{
 			this.name = name;
+			SecureRandom random = new SecureRandom(SecureRandom.getSeed(8));
+
+			salt = new byte[8];
+			random.nextBytes(salt);
+
+			byte[] passbytes = password.getBytes();
+
+			ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
+
+			try {
+				outputStream.write(salt);
+				outputStream.write(passbytes);
+
+				MessageDigest md = MessageDigest.getInstance("SHA-1");
+				passHash = md.digest(outputStream.toByteArray());
+
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
 			groups = new ArrayList<String>();
 			ownership = new ArrayList<String>();
+		}
+
+		public boolean correctPassword(String password) {
+			ByteArrayOutputStream outputStream = new ByteArrayOutputStream( );
+
+			byte[] passbytes = password.getBytes();
+
+			try {
+				outputStream.write(salt);
+				outputStream.write(passbytes);
+
+				MessageDigest md = MessageDigest.getInstance("SHA-1");
+				if (Arrays.equals(passHash, md.digest(outputStream.toByteArray())))
+					return true;
+
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
+			return false;
 		}
 
 		public ArrayList<String> getGroups()
