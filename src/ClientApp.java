@@ -25,6 +25,8 @@ public class ClientApp extends JFrame implements WindowListener
 	private FileClientInterface fc;
 
 	private byte[] myToken;
+	
+	private byte[] groupKey;
 
 	public static void main(String[] args) throws NoSuchAlgorithmException, NoSuchPaddingException
 	{
@@ -55,6 +57,7 @@ public class ClientApp extends JFrame implements WindowListener
 		gConnectButton.setName("groupConnect");
 		JButton gDisconnectButton = new JButton("Disconnect from Server");
 		gDisconnectButton.setName("groupDisconnect");
+		JButton getKeyButton = new JButton("Get Public Key");
 		JButton getTokenButton = new JButton("Get Token");
 		JButton createUserButton = new JButton("Create User");
 		JButton deleteUserButton = new JButton("Delete User");
@@ -73,6 +76,11 @@ public class ClientApp extends JFrame implements WindowListener
 		gDisconnectButton.addActionListener(new ActionListener() { 
 			public void actionPerformed(ActionEvent e) { 
 				disconnectButtonPressed(e);
+			} 
+		} );
+		getKeyButton.addActionListener(new ActionListener() { 
+			public void actionPerformed(ActionEvent e) { 
+				getKeyButtonPressed();
 			} 
 		} );
 		getTokenButton.addActionListener(new ActionListener() { 
@@ -124,6 +132,7 @@ public class ClientApp extends JFrame implements WindowListener
 		// Add the buttons to the panel
 		groupPanel.add(gConnectButton);
 		groupPanel.add(gDisconnectButton);
+		groupPanel.add(getKeyButton);
 		groupPanel.add(getTokenButton);
 		groupPanel.add(createUserButton);
 		groupPanel.add(deleteUserButton);
@@ -139,6 +148,7 @@ public class ClientApp extends JFrame implements WindowListener
 		fConnectButton.setName("fileConnect");
 		JButton fDisconnectButton = new JButton("Disconnect from Server");
 		fDisconnectButton.setName("fileDisconnect");
+		JButton setKeyButton = new JButton("Send Public Key");
 		JButton listFilesButton = new JButton("List Files");
 		JButton uploadFileButton = new JButton("Upload File");
 		JButton downloadFileButton = new JButton("Download File");
@@ -153,6 +163,11 @@ public class ClientApp extends JFrame implements WindowListener
 		fDisconnectButton.addActionListener(new ActionListener() { 
 			public void actionPerformed(ActionEvent e) { 
 				disconnectButtonPressed(e);
+			} 
+		} );
+		setKeyButton.addActionListener(new ActionListener() { 
+			public void actionPerformed(ActionEvent e) { 
+				setKeyButtonPressed();
 			} 
 		} );
 		listFilesButton.addActionListener(new ActionListener() { 
@@ -182,6 +197,7 @@ public class ClientApp extends JFrame implements WindowListener
 
 		filePanel.add(fConnectButton);
 		filePanel.add(fDisconnectButton);
+		filePanel.add(setKeyButton);
 		filePanel.add(listFilesButton);
 		filePanel.add(uploadFileButton);
 		filePanel.add(downloadFileButton);
@@ -191,6 +207,14 @@ public class ClientApp extends JFrame implements WindowListener
 
 		add(groupPanel);
 		add(filePanel);
+	}
+
+	protected void setKeyButtonPressed() {
+		fc.sendGroupKey(groupKey);
+	}
+
+	protected void getKeyButtonPressed() {
+		groupKey = gc.getPublicKey();
 	}
 
 	protected void deleteFileButtonPressed()

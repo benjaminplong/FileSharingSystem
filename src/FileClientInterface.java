@@ -27,6 +27,8 @@ public interface FileClientInterface
      *
      */
     public void disconnect();
+    
+    public boolean sendGroupKey(final byte[] groupKey);
 
 
     /**

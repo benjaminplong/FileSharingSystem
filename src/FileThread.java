@@ -4,10 +4,8 @@
 
 import java.lang.Thread;
 import java.net.Socket;
-import java.security.Key;
 import java.security.KeyFactory;
 import java.security.PublicKey;
-import java.security.spec.KeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.io.File;
@@ -25,6 +23,7 @@ public class FileThread extends Thread
 	private final Socket socket;
 	private FileServer my_fs;
 	private SecretKey sessionKey;
+	private PublicKey groupKey;
 
 	public FileThread(Socket _socket, FileServer fs)
 	{
@@ -49,7 +48,7 @@ public class FileThread extends Thread
 			byte[] encrypted;
 
 			do
-			{
+			{				
 				Envelope e = (Envelope)input.readObject();
 				System.out.println("Request received: " + e.getMessage());
 
@@ -75,13 +74,23 @@ public class FileThread extends Thread
 
 					sessionKey = new SecretKeySpec(decrypted, "AES");
 				}
+				else if(e.getMessage().equals("GROUPKEY"))
+				{
+					aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
+					decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(0));
+					
+					groupKey = keyFactory.generatePublic(new X509EncodedKeySpec(decrypted));
+					
+					response = new Envelope("OK");
+					output.writeObject(response);
+				}
 				// Handler to list files that this user is allowed to see
 				else if(e.getMessage().equals("LFILES"))
 				{
+					aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
 					decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(0));
-					byte[] rsaKey = aesCipher.doFinal((byte[]) e.getObjContents().get(1));
-					PublicKey key = keyFactory.generatePublic(new X509EncodedKeySpec(rsaKey));
-					rsaCipher.init(Cipher.DECRYPT_MODE, key);
+					
+					rsaCipher.init(Cipher.DECRYPT_MODE, groupKey);
 					decrypted = rsaCipher.doFinal(decrypted);
 
 					String tokenParts = new String(decrypted);
@@ -136,7 +145,7 @@ public class FileThread extends Thread
 							String group = new String(decrypted); // Extract the group
 
 							decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(2));
-							rsaCipher.init(Cipher.DECRYPT_MODE, my_fs.groupKey);
+							rsaCipher.init(Cipher.DECRYPT_MODE, groupKey);
 							decrypted = rsaCipher.doFinal(decrypted);
 
 							String tokenParts = new String(decrypted);
@@ -192,7 +201,7 @@ public class FileThread extends Thread
 					String remotePath = new String(decrypted); // Extract the remotePath
 
 					decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(1));
-					rsaCipher.init(Cipher.DECRYPT_MODE, my_fs.groupKey);
+					rsaCipher.init(Cipher.DECRYPT_MODE, groupKey);
 					decrypted = rsaCipher.doFinal(decrypted);
 
 					String tokenParts = new String(decrypted);
@@ -297,7 +306,7 @@ public class FileThread extends Thread
 					String remotePath = new String(decrypted); // Extract the remotePath
 
 					decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(1));
-					rsaCipher.init(Cipher.DECRYPT_MODE, my_fs.groupKey);
+					rsaCipher.init(Cipher.DECRYPT_MODE, groupKey);
 					decrypted = rsaCipher.doFinal(decrypted);
 
 					String tokenParts = new String(decrypted);

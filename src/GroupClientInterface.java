@@ -26,6 +26,8 @@ public interface GroupClientInterface
      *
      */
     public void disconnect();
+    
+    public byte[] getPublicKey();
 
 
     /**
