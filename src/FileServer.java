@@ -17,17 +17,13 @@ public class FileServer extends Server {
 
 	public static final int SERVER_PORT = 4321;
 	public static FileList fileList;
-	
-	protected final PublicKey groupKey;
 
 	public FileServer() {
 		super(SERVER_PORT, "FilePile");
-		groupKey = null;
 	}
 
-	public FileServer(String _server, int _port, PublicKey _groupKey) {
+	public FileServer(String _server, int _port) {
 		super(_port, _server);
-		groupKey = _groupKey;
 	}
 
 	public void start() {

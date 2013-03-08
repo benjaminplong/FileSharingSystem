@@ -4,6 +4,11 @@
 
 import java.lang.Thread;
 import java.net.Socket;
+import java.security.Key;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.KeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.io.File;
 import java.io.FileInputStream;
@@ -39,6 +44,7 @@ public class FileThread extends Thread
 
 			Cipher rsaCipher = Cipher.getInstance("RSA");
 			Cipher aesCipher = Cipher.getInstance("AES");
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 			byte[] decrypted;
 			byte[] encrypted;
 
@@ -73,7 +79,9 @@ public class FileThread extends Thread
 				else if(e.getMessage().equals("LFILES"))
 				{
 					decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(0));
-					rsaCipher.init(Cipher.DECRYPT_MODE, my_fs.groupKey);
+					byte[] rsaKey = aesCipher.doFinal((byte[]) e.getObjContents().get(1));
+					PublicKey key = keyFactory.generatePublic(new X509EncodedKeySpec(rsaKey));
+					rsaCipher.init(Cipher.DECRYPT_MODE, key);
 					decrypted = rsaCipher.doFinal(decrypted);
 
 					String tokenParts = new String(decrypted);
