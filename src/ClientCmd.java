@@ -12,6 +12,7 @@ public class ClientCmd {
 	private FileClientInterface fc;
 
 	private byte[] myToken;
+	private byte[] groupKey;
 	private Scanner input;
 
 	public static void main(String[] args) throws NoSuchAlgorithmException, NoSuchPaddingException {
@@ -85,6 +86,12 @@ public class ClientCmd {
 			else if(splitCmd[0].equals("del") && splitCmd.length == 2){
 				del(splitCmd);
 			}
+			else if(splitCmd[0].equals("setKey")){
+				setKey();
+			}
+			else if(splitCmd[0].equals("getKey")){
+				getKey();
+			}
 			else if(splitCmd[0].equals("exit")){
 				Client group = (Client) gc;
 				Client file = (Client) fc;
@@ -102,6 +109,13 @@ public class ClientCmd {
 		System.exit(0);
 	}
 	
+	protected void setKey() {
+		fc.sendGroupKey(groupKey);
+	}
+
+	protected void getKey() {
+		groupKey = gc.getPublicKey();
+	}
 	private void del(String[] command){
 		String filename = command[1];
 		
@@ -320,6 +334,8 @@ public class ClientCmd {
 		//System commands
 		System.out.println("System Commands");
 		System.out.println("\tExit: exit");
+		System.out.println("\tGet Group Key: getKey");
+		System.out.println("\tSet Group Key: setKey");
 		
 	}
 
