@@ -1,5 +1,6 @@
 
 import java.util.List;
+import java.util.TreeSet;
 
 /**
  * A simple interface to the token data structure that will be
@@ -46,7 +47,7 @@ public interface UserToken
      * @return The list of group memberships encoded in this token
      *
      */
-    public List<String> getGroups();
+    public TreeSet<String> getGroups();
 
 
 	public byte[] getBytes();

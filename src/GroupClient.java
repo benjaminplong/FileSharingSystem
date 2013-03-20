@@ -66,7 +66,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 				if(temp.size() == 1)
 				{
-					token = decryptAES(temp.get(0).toString().getBytes());
+					token = decryptAES((byte[])temp.get(0));
 					return token;
 				}
 			}
@@ -212,17 +212,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 			response = (Envelope)input.readObject();
 
+			ArrayList<String> members = new ArrayList<String>();
+			
 			//If server indicates success, return the member list
 			if(response.getMessage().equals("OK"))
-			{ 
-				ArrayList<String> groups = new ArrayList<String>();
+			{
+				for (Object o : response.getObjContents())
+					members.add(new String(decryptAES((byte[])o)));
 				
-				for(int i = 1; i < response.getObjContents().size(); i++){
-					byte[] name = decryptAES(response.getObjContents().get(i).toString().getBytes());
-					groups.add(name.toString());
-				}
-				
-				return groups;
+				return members; //This cast creates compiler warnings. Sorry.
 			}
 
 			return null;

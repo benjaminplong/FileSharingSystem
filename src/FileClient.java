@@ -17,7 +17,7 @@ public class FileClient extends Client implements FileClientInterface {
 
 	public boolean sendGroupKey(final byte[] groupKey)
 	{
-		Envelope message = new Envelope("LFILES");
+		Envelope message = new Envelope("GROUPKEY");
 		message.addObject(encryptAES(groupKey)); // add the group servers public key
 		try {
 			output.writeObject(message);
@@ -61,7 +61,6 @@ public class FileClient extends Client implements FileClientInterface {
 			e.printStackTrace();
 		}
 
-		env.addObject(encryptAES(serverKey.getEncoded()));
 		try {
 			output.writeObject(env);
 		} catch (IOException e) {
@@ -102,7 +101,6 @@ public class FileClient extends Client implements FileClientInterface {
 				Envelope env = new Envelope("DOWNLOADF"); //Success
 				env.addObject(encryptAES(sourceFile.getBytes()));
 				env.addObject(encryptAES(token));
-				env.addObject(encryptAES(serverKey.getEncoded()));
 				output.writeObject(env); 
 
 				env = (Envelope)input.readObject();
@@ -201,7 +199,6 @@ public class FileClient extends Client implements FileClientInterface {
 			message.addObject(encryptAES(destFile.getBytes()));
 			message.addObject(encryptAES(group.getBytes()));
 			message.addObject(encryptAES(token)); //Add requester's token
-			message.addObject(encryptAES(serverKey.getEncoded()));
 			output.writeObject(message);
 
 

@@ -96,7 +96,7 @@ public class FileThread extends Thread
 					String tokenParts = new String(decrypted);
 					UserToken t = new Token(tokenParts); //Extract the token
 
-					ArrayList<String> groups = (ArrayList<String>) t.getGroups();
+					ArrayList<String> groups = new ArrayList<String>(t.getGroups());
 
 					aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
 
