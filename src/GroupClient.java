@@ -199,7 +199,6 @@ public class GroupClient extends Client implements GroupClientInterface {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	public List<String> listMembers(String group, byte[] token)
 	{
 		try
@@ -213,10 +212,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 			response = (Envelope)input.readObject();
 
+			ArrayList<String> members = new ArrayList<String>();
+			
 			//If server indicates success, return the member list
 			if(response.getMessage().equals("OK"))
-			{ 
-				return (List<String>)response.getObjContents().get(0); //This cast creates compiler warnings. Sorry.
+			{
+				for (Object o : response.getObjContents())
+					members.add(new String(decryptAES((byte[])o)));
+				
+				return members; //This cast creates compiler warnings. Sorry.
 			}
 
 			return null;
