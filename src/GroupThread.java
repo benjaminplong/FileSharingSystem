@@ -80,6 +80,7 @@ public class GroupThread extends Thread
 				}
 				else if(message.getMessage().equals("GET"))//Client wants a token
 				{
+					aesCipher.init(Cipher.DECRYPT_MODE,sessionKey);
 					decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
 					String username = new String(decrypted); //Get the username
 					
