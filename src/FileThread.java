@@ -233,7 +233,7 @@ public class FileThread extends Thread
 							else {
 								FileInputStream fis = new FileInputStream(f);
 
-								aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
+								aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
 
 								do {
 									byte[] buf = new byte[4096];
@@ -258,10 +258,7 @@ public class FileThread extends Thread
 									output.writeObject(e);
 
 									e = (Envelope)input.readObject();
-
-
-								}
-								while (fis.available()>0);
+								} while (fis.available() > 0);
 
 								fis.close();
 
