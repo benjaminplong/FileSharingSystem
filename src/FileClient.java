@@ -147,7 +147,6 @@ public class FileClient extends Client implements FileClientInterface {
 		return true;
 	}
 
-	@SuppressWarnings("unchecked")
 	public List<String> listFiles(byte[] token) {
 		try
 		{
@@ -162,14 +161,13 @@ public class FileClient extends Client implements FileClientInterface {
 			//If server indicates success, return the member list
 			if(e.getMessage().equals("OK"))
 			{ 
-				ArrayList<String> encryptedList = (ArrayList<String>)e.getObjContents().get(0); //This cast creates compiler warnings. Sorry.
+				Envelope encryptedList = (Envelope)input.readObject(); //This cast creates compiler warnings. Sorry.
 				ArrayList<String> decryptedList = new ArrayList<String>();
 
-				for(String string : encryptedList){
-					decryptedList.add(decryptAES(string.getBytes()).toString());
-				}
-
-				return decryptedList;
+				for (Object o : encryptedList.getObjContents())
+					decryptedList.add(new String(decryptAES((byte[])o)));
+				
+				return decryptedList; //This cast creates compiler warnings. Sorry.
 			}
 
 			return null;
