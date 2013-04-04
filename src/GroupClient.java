@@ -220,7 +220,7 @@ public class GroupClient extends Client implements GroupClientInterface {
 				for (Object o : response.getObjContents())
 					members.add(new String(decryptAES((byte[])o)));
 				
-				return members; //This cast creates compiler warnings. Sorry.
+				return members;
 			}
 
 			return null;
