@@ -26,9 +26,6 @@ public interface GroupClientInterface
      *
      */
     public void disconnect();
-    
-    public byte[] getPublicKey();
-
 
     /**
      * Method used to get a token from the group server.  Right now,

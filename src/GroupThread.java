@@ -66,18 +66,6 @@ public class GroupThread extends Thread
 
 					sessionKey = new SecretKeySpec(decrypted, "AES");
 				}
-				else if(message.getMessage().equals("GETPUBKEY"))//Client wants our public key
-				{
-					//Respond to the client. On error, the client will receive a null token
-					response = new Envelope("OK");
-
-					aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
-
-					encrypted = aesCipher.doFinal(my_gs.RSAkeys.getPublic().getEncoded());
-					response.addObject(encrypted);
-
-					output.writeObject(response);
-				}
 				else if(message.getMessage().equals("GET"))//Client wants a token
 				{
 					aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);

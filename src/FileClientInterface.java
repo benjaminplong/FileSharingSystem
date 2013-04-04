@@ -27,9 +27,6 @@ public interface FileClientInterface
      *
      */
     public void disconnect();
-    
-    public boolean sendGroupKey(final byte[] groupKey);
-
 
     /**
      * Retrieves a list of files that are allowed to be displayed

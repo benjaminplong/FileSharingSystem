@@ -14,32 +14,6 @@ public class FileClient extends Client implements FileClientInterface {
 		super();
 	}
 
-	public boolean sendGroupKey(final byte[] groupKey) {
-		Envelope message = new Envelope("GROUPKEY");
-		message.addObject(encryptAES(groupKey)); // add the group servers public
-													// key
-		try {
-			output.writeObject(message);
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-
-		try {
-			Envelope e = (Envelope) input.readObject();
-
-			if (e.getMessage().equals("OK"))
-				return true;
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return false;
-	}
-
 	public boolean delete(String filename, byte[] token) {
 		String remotePath;
 		if (filename.charAt(0) == '/') {

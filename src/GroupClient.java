@@ -1,6 +1,5 @@
 /* Implements the GroupClient Interface */
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,36 +8,6 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 	GroupClient(){
 		super();
-	}
-
-	@Override
-	public byte[] getPublicKey() {
-		//Tell the server to return its public key
-		Envelope message = new Envelope("GETPUBKEY");
-		try {
-			output.writeObject(message);
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-
-		//Get the response from the server
-		Envelope response;
-		try {
-			response = (Envelope)input.readObject();
-			
-			//Successful response
-			if(response.getMessage().equals("OK"))
-				return decryptAES((byte[])response.getObjContents().get(0));
-			
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return null;
 	}
 
 	public byte[] getToken(String username,String password)

@@ -3,10 +3,11 @@
  */
 
 import java.lang.Thread;
+import java.math.BigInteger;
 import java.net.Socket;
 import java.security.KeyFactory;
 import java.security.PublicKey;
-import java.security.spec.X509EncodedKeySpec;
+import java.security.spec.RSAPublicKeySpec;
 import java.util.ArrayList;
 import java.io.File;
 import java.io.FileInputStream;
@@ -43,9 +44,19 @@ public class FileThread extends Thread
 
 			Cipher rsaCipher = Cipher.getInstance("RSA");
 			Cipher aesCipher = Cipher.getInstance("AES");
-			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 			byte[] decrypted;
 			byte[] encrypted;
+			
+			File keyFile = new File("GroupCert.bin");
+			FileInputStream keyFileStream = new FileInputStream(keyFile);
+			ObjectInputStream keyStream = new ObjectInputStream(keyFileStream);;
+			
+			BigInteger mod = (BigInteger) keyStream.readObject();
+	        BigInteger exp = (BigInteger) keyStream.readObject();
+	        RSAPublicKeySpec keySpec = new RSAPublicKeySpec(mod, exp);
+	        KeyFactory fact = KeyFactory.getInstance("RSA");
+	        groupKey = fact.generatePublic(keySpec);
+			keyStream.close();
 
 			do
 			{				
@@ -73,16 +84,6 @@ public class FileThread extends Thread
 					decrypted = rsaCipher.doFinal((byte[]) e.getObjContents().get(1));
 
 					sessionKey = new SecretKeySpec(decrypted, "AES");
-				}
-				else if(e.getMessage().equals("GROUPKEY"))
-				{
-					aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
-					decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(0));
-					
-					groupKey = keyFactory.generatePublic(new X509EncodedKeySpec(decrypted));
-					
-					response = new Envelope("OK");
-					output.writeObject(response);
 				}
 				// Handler to list files that this user is allowed to see
 				else if(e.getMessage().equals("LFILES"))

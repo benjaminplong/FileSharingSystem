@@ -1,3 +1,0 @@
-We went above and beyond the requirements of the project for this phase because we went back and implemented
-a command line interface for the system. We did this because of the problems resulting from trying to run the
-GUI interface remotely on lab machines. We did this to allow for easier testing and examination of our system.
