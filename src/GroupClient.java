@@ -2,6 +2,7 @@
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class GroupClient extends Client implements GroupClientInterface {
@@ -52,6 +53,9 @@ public class GroupClient extends Client implements GroupClientInterface {
 			message = new Envelope("GET");
 			message.addObject(encryptAES(username.getBytes())); //Add user name string
 			message.addObject(encryptAES(password.getBytes()));
+			hmac.update(username.getBytes());
+			hmac.update(password.getBytes());
+			message.setChecksum(hmac.doFinal());
 			output.writeObject(message);
 
 			//Get the response from the server
@@ -67,7 +71,8 @@ public class GroupClient extends Client implements GroupClientInterface {
 				if(temp.size() == 1)
 				{
 					token = decryptAES((byte[])temp.get(0));
-					return token;
+					if (Arrays.equals(response.getChecksum(), hmac.doFinal(token)))
+						return token;
 				}
 			}
 
@@ -92,15 +97,17 @@ public class GroupClient extends Client implements GroupClientInterface {
 			message.addObject(encryptAES(username.getBytes())); //Add user name string
 			message.addObject(encryptAES(password.getBytes()));
 			message.addObject(encryptAES(token));
+			hmac.update(username.getBytes());
+			hmac.update(password.getBytes());
+			hmac.update(token);
+			message.setChecksum(hmac.doFinal());
 			output.writeObject(message);
 
 			response = (Envelope)input.readObject();
 
 			//If server indicates success, return true
 			if(response.getMessage().equals("OK"))
-			{
 				return true;
-			}
 
 			return false;
 		}
@@ -122,15 +129,16 @@ public class GroupClient extends Client implements GroupClientInterface {
 			message = new Envelope("DUSER");
 			message.addObject(encryptAES(username.getBytes())); //Add user name
 			message.addObject(encryptAES(token));  //Add requester's token
+			hmac.update(username.getBytes());
+			hmac.update(token);
+			message.setChecksum(hmac.doFinal());
 			output.writeObject(message);
 
 			response = (Envelope)input.readObject();
 
 			//If server indicates success, return true
 			if(response.getMessage().equals("OK"))
-			{
 				return true;
-			}
 
 			return false;
 		}
@@ -151,15 +159,16 @@ public class GroupClient extends Client implements GroupClientInterface {
 			message = new Envelope("CGROUP");
 			message.addObject(encryptAES(groupname.getBytes())); //Add the group name string
 			message.addObject(encryptAES(token)); //Add the requester's token
+			hmac.update(groupname.getBytes());
+			hmac.update(token);
+			message.setChecksum(hmac.doFinal());
 			output.writeObject(message); 
 
 			response = (Envelope)input.readObject();
 
 			//If server indicates success, return true
 			if(response.getMessage().equals("OK"))
-			{
 				return true;
-			}
 
 			return false;
 		}
@@ -180,14 +189,15 @@ public class GroupClient extends Client implements GroupClientInterface {
 			message = new Envelope("DGROUP");
 			message.addObject(encryptAES(groupname.getBytes())); //Add group name string
 			message.addObject(encryptAES(token)); //Add requester's token
+			hmac.update(groupname.getBytes());
+			hmac.update(token);
+			message.setChecksum(hmac.doFinal());
 			output.writeObject(message); 
 
 			response = (Envelope)input.readObject();
 			//If server indicates success, return true
 			if(response.getMessage().equals("OK"))
-			{
 				return true;
-			}
 
 			return false;
 		}
@@ -208,6 +218,9 @@ public class GroupClient extends Client implements GroupClientInterface {
 			message = new Envelope("LMEMBERS");
 			message.addObject(encryptAES(group.getBytes())); //Add group name string
 			message.addObject(encryptAES(token)); //Add requester's token
+			hmac.update(group.getBytes());
+			hmac.update(token);
+			message.setChecksum(hmac.doFinal());
 			output.writeObject(message); 
 
 			response = (Envelope)input.readObject();
@@ -218,13 +231,17 @@ public class GroupClient extends Client implements GroupClientInterface {
 			if(response.getMessage().equals("OK"))
 			{
 				for (Object o : response.getObjContents())
-					members.add(new String(decryptAES((byte[])o)));
+				{
+					byte[] decrypted = decryptAES((byte[])o);
+					hmac.update(decrypted);
+					members.add(new String(decrypted));
+				}
 				
-				return members;
+				if (Arrays.equals(response.getChecksum(), hmac.doFinal()))
+					return members;
 			}
 
 			return null;
-
 		}
 		catch(Exception e)
 		{
@@ -244,14 +261,16 @@ public class GroupClient extends Client implements GroupClientInterface {
 			message.addObject(encryptAES(username.getBytes())); //Add user name string
 			message.addObject(encryptAES(groupname.getBytes())); //Add group name string
 			message.addObject(encryptAES(token)); //Add requester's token
+			hmac.update(username.getBytes());
+			hmac.update(groupname.getBytes());
+			hmac.update(token);
+			message.setChecksum(hmac.doFinal());
 			output.writeObject(message); 
 
 			response = (Envelope)input.readObject();
 			//If server indicates success, return true
 			if(response.getMessage().equals("OK"))
-			{
 				return true;
-			}
 
 			return false;
 		}
@@ -273,14 +292,16 @@ public class GroupClient extends Client implements GroupClientInterface {
 			message.addObject(encryptAES(username.getBytes())); //Add user name string
 			message.addObject(encryptAES(groupname.getBytes())); //Add group name string
 			message.addObject(encryptAES(token)); //Add requester's token
+			hmac.update(username.getBytes());
+			hmac.update(groupname.getBytes());
+			hmac.update(token);
+			message.setChecksum(hmac.doFinal());
 			output.writeObject(message);
 
 			response = (Envelope)input.readObject();
 			//If server indicates success, return true
 			if(response.getMessage().equals("OK"))
-			{
 				return true;
-			}
 
 			return false;
 		}

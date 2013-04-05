@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class FileClient extends Client implements FileClientInterface {
@@ -17,7 +18,7 @@ public class FileClient extends Client implements FileClientInterface {
 	public boolean sendGroupKey(final byte[] groupKey) {
 		Envelope message = new Envelope("GROUPKEY");
 		message.addObject(encryptAES(groupKey)); // add the group servers public
-													// key
+		// key
 		try {
 			output.writeObject(message);
 		} catch (IOException e1) {
@@ -50,25 +51,14 @@ public class FileClient extends Client implements FileClientInterface {
 		Envelope env = new Envelope("DELETEF"); // Success
 		try {
 			env.addObject(encryptAES(remotePath.getBytes()));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		try {
 			env.addObject(encryptAES(token));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
-		try {
+			hmac.update(remotePath.getBytes());
+			hmac.update(token);
+			env.setChecksum(hmac.doFinal());
 			output.writeObject(env);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		try {
+
 			env = (Envelope) input.readObject();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
@@ -98,30 +88,36 @@ public class FileClient extends Client implements FileClientInterface {
 				Envelope env = new Envelope("DOWNLOADF"); // Success
 				env.addObject(encryptAES(sourceFile.getBytes()));
 				env.addObject(encryptAES(token));
+				hmac.update(sourceFile.getBytes());
+				hmac.update(token);
+				env.setChecksum(hmac.doFinal());
 				output.writeObject(env);
 
 				env = (Envelope) input.readObject();
 
 				while (env.getMessage().compareTo("CHUNK") == 0) {
 					// TODO: do something about plain number passing
-					fos.write(decryptAES((byte[]) env.getObjContents().get(0)),
-							0, (Integer) env.getObjContents().get(1));
-					System.out.printf(".");
-					env = new Envelope("DOWNLOADF"); // Success
-					output.writeObject(env);
-					env = (Envelope) input.readObject();
+					byte[] decrypted = decryptAES((byte[]) env.getObjContents().get(0));
+					if (Arrays.equals(env.getChecksum(), hmac.doFinal(decrypted)))
+					{
+						fos.write(decrypted, 0, (Integer) env.getObjContents().get(1));
+						System.out.printf(".");
+
+						env = new Envelope("DOWNLOADF"); // Success
+						output.writeObject(env);
+						env = (Envelope) input.readObject();
+					}
+					else break;
 				}
 				fos.close();
 
 				if (env.getMessage().compareTo("EOF") == 0) {
 					fos.close();
-					System.out.printf("\nTransfer successful file %s\n",
-							sourceFile);
+					System.out.printf("\nTransfer successful file %s\n", sourceFile);
 					env = new Envelope("OK"); // Success
 					output.writeObject(env);
 				} else {
-					System.out.printf("Error reading file %s (%s)\n",
-							sourceFile, env.getMessage());
+					System.out.printf("Error reading file %s (%s)\n", sourceFile, env.getMessage());
 					file.delete();
 					return false;
 				}
@@ -149,19 +145,26 @@ public class FileClient extends Client implements FileClientInterface {
 			// Tell the server to return the member list
 			message = new Envelope("LFILES");
 			message.addObject(encryptAES(token)); // Add requester's token
+			hmac.update(token);
+			message.setChecksum(hmac.doFinal());
 			output.writeObject(message);
 
 			e = (Envelope) input.readObject();
 
 			ArrayList<String> files =  new ArrayList<String>();
-			
+
 			// If server indicates success, return the member list
 			if (e.getMessage().equals("OK"))
 			{
 				for (Object o : e.getObjContents())
-					files.add(new String(decryptAES((byte[])o)));
-				
-				return files;
+				{
+					byte[] decrypted = decryptAES((byte[])o);
+					hmac.update(decrypted);
+					files.add(new String(decrypted));
+				}
+
+				if (Arrays.equals(e.getChecksum(), hmac.doFinal()))
+					return files;
 			}
 
 			return null;
@@ -188,6 +191,10 @@ public class FileClient extends Client implements FileClientInterface {
 			message.addObject(encryptAES(destFile.getBytes()));
 			message.addObject(encryptAES(group.getBytes()));
 			message.addObject(encryptAES(token)); // Add requester's token
+			hmac.update(destFile.getBytes());
+			hmac.update(group.getBytes());
+			hmac.update(token);
+			message.setChecksum(hmac.doFinal());
 			output.writeObject(message);
 
 			FileInputStream fis = new FileInputStream(sourceFile);
@@ -223,6 +230,7 @@ public class FileClient extends Client implements FileClientInterface {
 				}
 
 				message.addObject(encryptAES(buf));
+				message.setChecksum(hmac.doFinal(buf));
 				// TODO: do something about plain number passing
 				message.addObject(new Integer(n));
 
@@ -246,7 +254,7 @@ public class FileClient extends Client implements FileClientInterface {
 				} else {
 
 					System.out
-							.printf("\nUpload failed: %s\n", env.getMessage());
+					.printf("\nUpload failed: %s\n", env.getMessage());
 					return false;
 				}
 

@@ -65,7 +65,8 @@ public class Token implements UserToken, java.io.Serializable {
 		StringBuilder sb = new StringBuilder();
 		for (String s : getGroups())
 			sb.append(s + ",");
-		sb.deleteCharAt(sb.length()-1);
+		if (sb.length() > 0)
+			sb.deleteCharAt(sb.length()-1);
 		String s = new String(_server + "," + _username + "," + sb.toString());
 		return s.getBytes();
 	}

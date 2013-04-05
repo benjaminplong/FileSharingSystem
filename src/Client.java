@@ -1,6 +1,7 @@
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.security.InvalidKeyException;
+import java.security.Key;
 import java.security.NoSuchAlgorithmException; 
 import java.security.PublicKey;
 import java.util.Arrays;
@@ -13,6 +14,7 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyGenerator;
+import javax.crypto.Mac;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -27,30 +29,35 @@ public abstract class Client {
 	protected ObjectInputStream input;
 	protected PublicKey serverKey;
 	protected SecretKey sessionKey;
-	protected SecretKeySpec sessionKeySpec;
+	protected SecretKey hashKey;
 	private Random rand;
 	private Cipher aesCipher;
+	protected Mac hmac;
 	
 	//set up keys and random number generator
-	Client() {
-		rand = new Random();
+	Client()
+	{
+		rand = new Random(System.currentTimeMillis());
 		KeyGenerator keyGen = null;
 		try {
 			keyGen = KeyGenerator.getInstance("AES");
-		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		//128 bit key length
-		keyGen.init(128);
-		sessionKey = keyGen.generateKey();
-		sessionKeySpec = new SecretKeySpec(sessionKey.getEncoded(),"AES");
-		try {
+			keyGen.init(128);
+			sessionKey = new SecretKeySpec(keyGen.generateKey().getEncoded(), "AES");
+			
+			keyGen = KeyGenerator.getInstance("HmacSHA1");
+			keyGen.init(128);
+			hashKey = new SecretKeySpec(keyGen.generateKey().getEncoded(), "HmacSHA1");
+			
 			aesCipher = Cipher.getInstance("AES");
+			hmac = Mac.getInstance("HmacSHA1");
+			hmac.init(hashKey);
 		} catch (NoSuchAlgorithmException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (NoSuchPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InvalidKeyException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -67,31 +74,42 @@ public abstract class Client {
 			Envelope e = new Envelope("CONNECT");
 			output.writeObject(e);
 			
+			// Get the Servers public key
 			e = (Envelope)input.readObject();
 			if(e.getMessage().equals("PUBLICKEY"))
-			{
 				serverKey = (PublicKey) e.getObjContents().get(0);
-			}
+			
 			byte[] value = new byte[4];
 			rand.nextBytes(value);
-			
 			
 			Cipher cipher = Cipher.getInstance("RSA");
 			cipher.init(Cipher.ENCRYPT_MODE, serverKey);
 			
-			e = new Envelope("SESSIONKEY");
+			// Send our random number with the session key and hash key encrypted with the servers public key
+			e = new Envelope("SHAREDKEYS");
 			e.addObject(cipher.doFinal(value));
 			e.addObject(cipher.doFinal(sessionKey.getEncoded()));
+			e.addObject(cipher.doFinal(hashKey.getEncoded()));
 			output.writeObject(e);
 			
 			e = (Envelope)input.readObject();
 			
-			if(e.getMessage().equals("AUTHVALUE")){
-				if(Arrays.equals((byte[])e.getObjContents().get(0), value)){
-					return sock.isConnected();
-				}
-				else{
-					return false;
+			if(e.getMessage().equals("AUTHVALUE"))
+			{
+				// Make sure the numbers match
+				if(Arrays.equals(decryptAES((byte[])e.getObjContents().get(0)), value))
+				{
+					// send back the servers random number generated
+					byte[] decrypted = decryptAES((byte[])e.getObjContents().get(1));
+					
+					Envelope response = new Envelope("AUTHVALUE");
+					response.addObject(encryptAES(decrypted));
+					output.writeObject(response);
+					
+					e = (Envelope)input.readObject();
+					
+					if (e.getMessage().equals("OK"))
+						return sock.isConnected();
 				}
 			}
 		} catch (UnknownHostException e) {
@@ -124,9 +142,9 @@ public abstract class Client {
 		}
 	}
 	
-	public byte[] encryptAES(byte[] message) {
+	protected byte[] encryptAES(byte[] message) {
 		try {
-			aesCipher.init(Cipher.ENCRYPT_MODE, sessionKeySpec);
+			aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
 		} catch (InvalidKeyException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -143,9 +161,9 @@ public abstract class Client {
 		return null;
 	}
 	
-	public byte[] decryptAES(byte[] message){
+	protected byte[] decryptAES(byte[] message) {
 		try {
-			aesCipher.init(Cipher.DECRYPT_MODE, sessionKeySpec);
+			aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
 		} catch (InvalidKeyException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

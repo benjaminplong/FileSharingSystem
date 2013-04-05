@@ -7,6 +7,7 @@ import java.io.*;
 import java.util.*;
 
 import javax.crypto.Cipher;
+import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -15,11 +16,14 @@ public class GroupThread extends Thread
 	private final Socket socket;
 	private GroupServer my_gs;
 	private SecretKey sessionKey;
+	private Random rand;
 
 	public GroupThread(Socket _socket, GroupServer _gs)
 	{
 		socket = _socket;
 		my_gs = _gs;
+
+		rand = new Random(System.currentTimeMillis());
 	}
 
 	public void run()
@@ -36,6 +40,7 @@ public class GroupThread extends Thread
 
 			Cipher rsaCipher = Cipher.getInstance("RSA");
 			Cipher aesCipher = Cipher.getInstance("AES");
+			Mac hmac = Mac.getInstance("HmacSHA1");
 			byte[] decrypted;
 			byte[] encrypted;
 
@@ -51,20 +56,51 @@ public class GroupThread extends Thread
 					response.addObject(my_gs.RSAkeys.getPublic());
 					output.writeObject(response);
 				}
-				else if (message.getMessage().equals("SESSIONKEY"))
+				else if (message.getMessage().equals("SHAREDKEYS"))
 				{
-					// initialize your cipher
-					rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPrivate());
-					decrypted = rsaCipher.doFinal((byte[]) message.getObjContents().get(0));
-
 					// return the random number to the client
 					response = new Envelope("AUTHVALUE");
-					response.addObject(decrypted);
-					output.writeObject(response);
+
+					// initialize your cipher
+					rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPrivate());
 
 					decrypted = rsaCipher.doFinal((byte[]) message.getObjContents().get(1));
-
 					sessionKey = new SecretKeySpec(decrypted, "AES");
+
+					// decrypt the random number from the client
+					aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
+					decrypted = rsaCipher.doFinal((byte[]) message.getObjContents().get(0));
+					response.addObject(aesCipher.doFinal(decrypted));
+
+					byte[] value = new byte[4];
+					rand.nextBytes(value);
+
+					// send a new random number
+					response.addObject(aesCipher.doFinal(value));
+
+					output.writeObject(response);
+
+					// get the hash key value for HMAC
+					decrypted = rsaCipher.doFinal((byte[]) message.getObjContents().get(2));
+					SecretKey hashKey = new SecretKeySpec(decrypted, "HmacSHA1");
+					hmac.init(hashKey);
+					
+					message = (Envelope)input.readObject();
+
+					if(message.getMessage().equals("AUTHVALUE"))
+					{
+						aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
+						decrypted = aesCipher.doFinal((byte[])message.getObjContents().get(0));
+						// Close the connection if the numbers don't match
+						if(!Arrays.equals(decrypted, value))
+						{
+							socket.close();
+							proceed = false;
+						}
+
+						response = new Envelope("OK");
+						output.writeObject(response);
+					}
 				}
 				else if(message.getMessage().equals("GETPUBKEY"))//Client wants our public key
 				{
@@ -81,30 +117,39 @@ public class GroupThread extends Thread
 				else if(message.getMessage().equals("GET"))//Client wants a token
 				{
 					aesCipher.init(Cipher.DECRYPT_MODE, sessionKey);
-					
+
 					decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
 					String username = new String(decrypted); //Get the username
+					hmac.update(decrypted);
 
 					decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
 					String password = new String(decrypted); //Get the password
+					hmac.update(decrypted);
 
-					UserToken yourToken = createToken(username, password); //Create a token
+					response = new Envelope("FAIL");
 
-					//Respond to the client. On error, the client will receive a null token
-					if (yourToken != null)
+					if (Arrays.equals(message.getChecksum(), hmac.doFinal()))
 					{
-						response = new Envelope("OK");
+						UserToken yourToken = createToken(username, password); //Create a token
 
-						rsaCipher.init(Cipher.ENCRYPT_MODE, my_gs.RSAkeys.getPrivate());
-						encrypted = rsaCipher.doFinal(yourToken.getBytes());
-						
-						aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
+						//Respond to the client. On error, the client will receive a null token
+						if (yourToken != null)
+						{
+							response = new Envelope("OK");
 
-						encrypted = aesCipher.doFinal(encrypted);
-						response.addObject(encrypted);
+							rsaCipher.init(Cipher.ENCRYPT_MODE, my_gs.RSAkeys.getPrivate());
+							encrypted = rsaCipher.doFinal(yourToken.getBytes());
+
+							aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
+
+							hmac.update(encrypted);
+							encrypted = aesCipher.doFinal(encrypted);
+							response.addObject(encrypted);
+							response.setChecksum(hmac.doFinal());
+						}
+						else
+							response = new Envelope("FAIL");
 					}
-					else
-						response = new Envelope("FAIL");
 
 					output.writeObject(response);
 				}
@@ -126,20 +171,24 @@ public class GroupThread extends Thread
 
 								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
 								String username = new String(decrypted); // Extract the username
+								hmac.update(decrypted);
 
 								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
 								String password = new String(decrypted); // Extract the password
+								hmac.update(decrypted);
 
 								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(2));
+								hmac.update(decrypted);
 								rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
 								decrypted = rsaCipher.doFinal(decrypted);
 
 								String tokenParts = new String(decrypted);
 								UserToken yourToken = new Token(tokenParts); //Extract the token
 
-								if(createUser(username, password, yourToken))
+								if (Arrays.equals(message.getChecksum(), hmac.doFinal()))
 								{
-									response = new Envelope("OK"); //Success
+									if(createUser(username, password, yourToken))
+										response = new Envelope("OK"); //Success
 								}
 							}
 						}
@@ -166,17 +215,20 @@ public class GroupThread extends Thread
 
 								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
 								String username = new String(decrypted); // Extract the username
+								hmac.update(decrypted);
 
 								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
+								hmac.update(decrypted);
 								rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
 								decrypted = rsaCipher.doFinal(decrypted);
 
 								String tokenParts = new String(decrypted);
 								UserToken yourToken = new Token(tokenParts); //Extract the token
 
-								if(deleteUser(username, yourToken))
+								if (Arrays.equals(message.getChecksum(), hmac.doFinal()))
 								{
-									response = new Envelope("OK"); //Success
+									if(deleteUser(username, yourToken))
+										response = new Envelope("OK");
 								}
 							}
 						}
@@ -202,17 +254,20 @@ public class GroupThread extends Thread
 
 								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
 								String groupName = new String(decrypted); // Extract the username
+								hmac.update(decrypted);
 
 								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
+								hmac.update(decrypted);
 								rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
 								decrypted = rsaCipher.doFinal(decrypted);
 
 								String tokenParts = new String(decrypted);
 								UserToken yourToken = new Token(tokenParts); //Extract the token
 
-								if(createGroup(groupName, yourToken))
+								if (Arrays.equals(message.getChecksum(), hmac.doFinal()))
 								{
-									response = new Envelope("OK"); //Success
+									if(createGroup(groupName, yourToken))
+										response = new Envelope("OK");
 								}
 							}
 						}
@@ -238,17 +293,20 @@ public class GroupThread extends Thread
 
 								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
 								String groupName = new String(decrypted); // Extract the username
+								hmac.update(decrypted);
 
 								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
+								hmac.update(decrypted);
 								rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
 								decrypted = rsaCipher.doFinal(decrypted);
 
 								String tokenParts = new String(decrypted);
 								UserToken yourToken = new Token(tokenParts); //Extract the token
 
-								if(deleteGroup(groupName, yourToken))
+								if (Arrays.equals(message.getChecksum(), hmac.doFinal()))
 								{
-									response = new Envelope("OK"); //Success
+									if(deleteGroup(groupName, yourToken))
+										response = new Envelope("OK");
 								}
 							}
 						}
@@ -274,26 +332,33 @@ public class GroupThread extends Thread
 
 								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
 								String groupName = new String(decrypted); // Extract the username
+								hmac.update(decrypted);
 
 								decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
+								hmac.update(decrypted);
 								rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
 								decrypted = rsaCipher.doFinal(decrypted);
 
 								String tokenParts = new String(decrypted);
 								UserToken yourToken = new Token(tokenParts); //Extract the token
 
-								List<String> members = listMembers(groupName, yourToken);
-
-								if(members != null)
+								if (Arrays.equals(message.getChecksum(), hmac.doFinal()))
 								{
-									response = new Envelope("OK"); //Success
+									List<String> members = listMembers(groupName, yourToken);
 
-									aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
-
-									for (int i = 0; i < members.size(); ++i)
+									if(members != null)
 									{
-										encrypted = aesCipher.doFinal(members.get(i).getBytes());
-										response.addObject(encrypted);
+										response = new Envelope("OK"); //Success
+
+										aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
+
+										for (int i = 0; i < members.size(); ++i)
+										{
+											hmac.update(members.get(i).getBytes());
+											encrypted = aesCipher.doFinal(members.get(i).getBytes());
+											response.addObject(encrypted);
+										}
+										response.setChecksum(hmac.doFinal());
 									}
 								}
 							}
@@ -322,20 +387,24 @@ public class GroupThread extends Thread
 
 									decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
 									String username = new String(decrypted); // Extract the username
+									hmac.update(decrypted);
 
 									decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
 									String groupName = new String(decrypted); // Extract the groupname
+									hmac.update(decrypted);
 
 									decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(2));
+									hmac.update(decrypted);
 									rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
 									decrypted = rsaCipher.doFinal(decrypted);
 
 									String tokenParts = new String(decrypted);
 									UserToken yourToken = new Token(tokenParts); //Extract the token
 
-									if(addUserToGroup(username, groupName, yourToken))
+									if (Arrays.equals(message.getChecksum(), hmac.doFinal()))
 									{
-										response = new Envelope("OK"); //Success
+										if(addUserToGroup(username, groupName, yourToken))
+											response = new Envelope("OK");
 									}
 								}
 							}
@@ -364,20 +433,24 @@ public class GroupThread extends Thread
 
 									decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(0));
 									String username = new String(decrypted); // Extract the username
+									hmac.update(decrypted);
 
 									decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
 									String groupName = new String(decrypted); // Extract the groupname
+									hmac.update(decrypted);
 
 									decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(2));
+									hmac.update(decrypted);
 									rsaCipher.init(Cipher.DECRYPT_MODE, my_gs.RSAkeys.getPublic());
 									decrypted = rsaCipher.doFinal(decrypted);
 
 									String tokenParts = new String(decrypted);
 									UserToken yourToken = new Token(tokenParts); //Extract the token
 
-									if(deleteUserFromGroup(username, groupName, yourToken))
+									if (Arrays.equals(message.getChecksum(), hmac.doFinal()))
 									{
-										response = new Envelope("OK"); //Success
+										if(deleteUserFromGroup(username, groupName, yourToken))
+											response = new Envelope("OK");
 									}
 								}
 							}
