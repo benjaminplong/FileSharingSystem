@@ -1,6 +1,8 @@
 
 import java.util.List;
 import java.util.TreeSet;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 /**
  * 
@@ -19,11 +21,20 @@ public class Token implements UserToken, java.io.Serializable {
 	
 	private String _server;
 	private String _username;
-	private TreeSet<String> _groups; 
+	private InetAddress _address;
+	private TreeSet<String> _groups;
+
 
 	public Token(String name, String username, List<String> userGroups) {
 		_server = name;
 		_username = username;
+		_address = null;
+		_groups = new TreeSet<String>(userGroups);
+	}
+	public Token(String name, String username, List<String> userGroups, InetAddress address) {
+		_server = name;
+		_username = username;
+		_address = address;
 		_groups = new TreeSet<String>(userGroups);
 	}
 	
@@ -31,9 +42,15 @@ public class Token implements UserToken, java.io.Serializable {
 		String[] fields = parts.split(",");
 		_server = fields[0];
 		_username = fields[1];
+		try {
+			_address = InetAddress.getByName(fields[2]);
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		_groups = new TreeSet<String>();
 		
-		for (int i = 2; i <fields.length; ++i)
+		for (int i = 3; i <fields.length; ++i)
 			_groups.add(fields[i]);
 	}
 
@@ -68,6 +85,10 @@ public class Token implements UserToken, java.io.Serializable {
 		sb.deleteCharAt(sb.length()-1);
 		String s = new String(_server + "," + _username + "," + sb.toString());
 		return s.getBytes();
+	}
+	
+	public InetAddress getAddress() {
+		return _address;
 	}
 
 }
