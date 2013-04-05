@@ -9,6 +9,7 @@
 import java.awt.*;
 import java.awt.event.*;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.crypto.NoSuchPaddingException;
@@ -23,6 +24,7 @@ public class ClientApp extends JFrame implements WindowListener
 
 	private GroupClientInterface gc;
 	private FileClientInterface fc;
+	private ArrayList<Group> myGroups;
 
 	private byte[] myToken;
 
@@ -37,6 +39,7 @@ public class ClientApp extends JFrame implements WindowListener
 
 		gc = new GroupClient();
 		fc = new FileClient();
+		myGroups = new ArrayList<Group>();
 
 		makeLayout();
 
@@ -213,7 +216,7 @@ public class ClientApp extends JFrame implements WindowListener
 
 		if (!sourceFile.isEmpty() && !destFile.isEmpty())
 		{
-			if (fc.download(sourceFile, destFile, myToken))
+			if (fc.download(sourceFile, destFile, myToken, myGroups))
 				JOptionPane.showMessageDialog(this, "File downloaded successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
 			else
 				JOptionPane.showMessageDialog(this, "File not downloaded.", "Warning", JOptionPane.WARNING_MESSAGE);
@@ -228,7 +231,7 @@ public class ClientApp extends JFrame implements WindowListener
 
 		if (!sourceFile.isEmpty() && !destFile.isEmpty() && !group.isEmpty())
 		{
-			if (fc.upload(sourceFile, destFile, group, myToken))
+			if (fc.upload(sourceFile, destFile, group, myToken, myGroups))
 				JOptionPane.showMessageDialog(this, "File uploaded successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
 			else
 				JOptionPane.showMessageDialog(this, "File not uploaded.", "Warning", JOptionPane.WARNING_MESSAGE);
@@ -360,6 +363,7 @@ public class ClientApp extends JFrame implements WindowListener
 		if (!username.isEmpty())
 		{
 			myToken = gc.getToken(username,password);
+			myGroups = gc.getGroups();
 
 			if (myToken == null)
 				JOptionPane.showMessageDialog(this, "No token received. Check username.", "Warning", JOptionPane.WARNING_MESSAGE);

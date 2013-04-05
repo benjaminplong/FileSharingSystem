@@ -4,9 +4,20 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+
+import com.sun.crypto.provider.AESCipher;
 
 public class FileClient extends Client implements FileClientInterface {
 
@@ -57,7 +68,7 @@ public class FileClient extends Client implements FileClientInterface {
 		return true;
 	}
 
-	public boolean download(String sourceFile, String destFile, byte[] token) {
+	public boolean download(String sourceFile, String destFile, byte[] token, ArrayList<Group> myGroups) {
 		if (sourceFile.charAt(0) == '/') {
 			sourceFile = sourceFile.substring(1);
 		}
@@ -73,13 +84,51 @@ public class FileClient extends Client implements FileClientInterface {
 				env.addObject(encryptAES(sourceFile.getBytes()));
 				env.addObject(encryptAES(token));
 				output.writeObject(env);
+				
+				env = (Envelope) input.readObject();
+				int keyIndex = ByteBuffer.wrap(decryptAES((byte[]) env.getObjContents().get(0))).getInt();
+				String group = decryptAES((byte[]) env.getObjContents().get(1)).toString();
+				
+				env = new Envelope("DOWNLOADF");
+				output.writeObject(env);
+				
+				Cipher fileCipher = null;
+				try {
+					fileCipher = Cipher.getInstance("AES");
+				} catch (NoSuchAlgorithmException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (NoSuchPaddingException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				SecretKey key = null;
+				for(Group groupItem : myGroups){
+					if(groupItem.name.equals(group)){
+						key = groupItem.getKey(keyIndex);
+					}
+				}
+				try {
+					fileCipher.init(Cipher.DECRYPT_MODE, key);
+				} catch (InvalidKeyException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 
 				env = (Envelope) input.readObject();
 
 				while (env.getMessage().compareTo("CHUNK") == 0) {
 					// TODO: do something about plain number passing
-					fos.write(decryptAES((byte[]) env.getObjContents().get(0)),
-							0, (Integer) env.getObjContents().get(1));
+					try {
+						fos.write(fileCipher.doFinal(decryptAES((byte[]) env.getObjContents().get(0)),
+								0, (Integer) env.getObjContents().get(1)));
+					} catch (IllegalBlockSizeException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (BadPaddingException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 					System.out.printf(".");
 					env = new Envelope("DOWNLOADF"); // Success
 					output.writeObject(env);
@@ -148,7 +197,7 @@ public class FileClient extends Client implements FileClientInterface {
 	}
 
 	public boolean upload(String sourceFile, String destFile, String group,
-			byte[] token) {
+			byte[] token, ArrayList<Group> myGroups) {
 
 		if (destFile.charAt(0) != '/') {
 			destFile = "/" + destFile;
@@ -160,8 +209,20 @@ public class FileClient extends Client implements FileClientInterface {
 			// Tell the server to return the member list
 			message = new Envelope("UPLOADF");
 			message.addObject(encryptAES(destFile.getBytes()));
+			Cipher fileCipher = Cipher.getInstance("AES");
+			SecretKey key = null;
+			int keyIndex = 0;
+			for(Group groupItem : myGroups){
+				if(groupItem.name.equals(group)){
+					keyIndex = groupItem.keys.size() - 1;
+					key = groupItem.getKey(keyIndex);
+				}
+			}
+			fileCipher.init(Cipher.ENCRYPT_MODE, key);
 			message.addObject(encryptAES(group.getBytes()));
 			message.addObject(encryptAES(token)); // Add requester's token
+			ByteBuffer keyIndexBuf = ByteBuffer.allocate(4).putInt(keyIndex);
+			message.addObject(encryptAES(keyIndexBuf.array()));
 			output.writeObject(message);
 
 			FileInputStream fis = new FileInputStream(sourceFile);
@@ -196,7 +257,7 @@ public class FileClient extends Client implements FileClientInterface {
 					return false;
 				}
 
-				message.addObject(encryptAES(buf));
+				message.addObject(encryptAES(fileCipher.doFinal(buf)));
 				// TODO: do something about plain number passing
 				message.addObject(new Integer(n));
 

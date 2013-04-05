@@ -1,4 +1,5 @@
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
@@ -13,6 +14,7 @@ public class ClientCmd {
 
 	private byte[] myToken;
 	private Scanner input;
+	private ArrayList<Group> myGroups;
 
 	public static void main(String[] args) throws NoSuchAlgorithmException,
 			NoSuchPaddingException {
@@ -25,6 +27,7 @@ public class ClientCmd {
 		gc = new GroupClient();
 		fc = new FileClient();
 		input = new Scanner(System.in);
+		myGroups = new ArrayList<Group>();
 
 		Run();
 	}
@@ -103,7 +106,7 @@ public class ClientCmd {
 		String destFile = command[2];
 
 		if (!sourceFile.isEmpty() && !destFile.isEmpty()) {
-			if (fc.download(sourceFile, destFile, myToken))
+			if (fc.download(sourceFile, destFile, myToken, myGroups))
 				System.out.println("File downloaded successfully.");
 			else
 				System.out.println("File not downloaded.");
@@ -116,7 +119,7 @@ public class ClientCmd {
 		String group = command[3];
 
 		if (!sourceFile.isEmpty() && !destFile.isEmpty() && !group.isEmpty()) {
-			if (fc.upload(sourceFile, destFile, group, myToken))
+			if (fc.upload(sourceFile, destFile, group, myToken, myGroups))
 				System.out.println("File uploaded successfully.");
 			else
 				System.out.println("File not uploaded.");
@@ -250,6 +253,7 @@ public class ClientCmd {
 
 		if (!username.isEmpty()) {
 			myToken = gc.getToken(username, password);
+			myGroups = gc.getGroups();
 
 			if (myToken == null)
 				System.out.println("No token received");

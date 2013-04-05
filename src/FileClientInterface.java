@@ -1,4 +1,5 @@
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -50,11 +51,12 @@ public interface FileClientInterface
      * @param destFile   The filename to use on the server
      * @param group      The group to share this file with
      * @param token      The token of the user uploading the file
+     * @param myGroups 
      *
      * @return true on success, false on failure
      *
      */
-    public boolean upload(final String sourceFile, final String destFile, final String group, final byte[] token);
+    public boolean upload(final String sourceFile, final String destFile, final String group, final byte[] token, ArrayList<Group> myGroups);
 
 
     /**
@@ -64,11 +66,12 @@ public interface FileClientInterface
      * @param sourceFile The filename used on the server
      * @param destFile   The filename to use locally
      * @param token      The token of the user uploading the file
+     * @param myGroups 
      *
      * @return true on success, false on failure
      *
      */
-    public boolean download(final String sourceFile, final String destFile, final byte[] token);
+    public boolean download(final String sourceFile, final String destFile, final byte[] token, ArrayList<Group> myGroups);
 
 
     /**

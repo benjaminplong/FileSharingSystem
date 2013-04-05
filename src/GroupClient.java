@@ -1,15 +1,25 @@
 /* Implements the GroupClient Interface */
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
+
+import javax.crypto.spec.SecretKeySpec;
 
 public class GroupClient extends Client implements GroupClientInterface {
 
+	ArrayList<Group> clientGroups;
 
 	GroupClient(){
 		super();
+		clientGroups = new ArrayList<Group>();
 	}
 
+	
+	public ArrayList<Group> getGroups(){
+		return clientGroups;
+	}
 	public byte[] getToken(String username,String password)
 	{
 		try
@@ -33,9 +43,25 @@ public class GroupClient extends Client implements GroupClientInterface {
 				ArrayList<Object> temp = null;
 				temp = response.getObjContents();
 
-				if(temp.size() == 1)
+				if(temp.size() != 0)
 				{
-					token = decryptAES((byte[])temp.get(0));
+					ListIterator<Object> it = temp.listIterator();
+					token = decryptAES((byte[])it.next());
+					
+					int numGroups = ByteBuffer.wrap((decryptAES((byte[])it.next()))).getInt();
+					if(numGroups > 0){
+						for(int i = 0; i < numGroups; i++){
+							Group group = new Group(decryptAES((byte[])it.next()).toString());
+							int numKeys = ByteBuffer.wrap((decryptAES((byte[])it.next()))).getInt();
+							for(int j = 0; j < numKeys; j++){
+								byte[] key = decryptAES((byte[])it.next());
+								group.addKey(new SecretKeySpec(key, 0, key.length, "AES"));
+							}
+							clientGroups.add(group);
+						}
+					}
+					
+					
 					return token;
 				}
 			}

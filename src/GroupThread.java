@@ -3,6 +3,7 @@
  */
 import java.lang.Thread;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.io.*;
 import java.util.*;
 
@@ -15,11 +16,14 @@ public class GroupThread extends Thread
 	private final Socket socket;
 	private GroupServer my_gs;
 	private SecretKey sessionKey;
+	//list of all groups managed by the group server
+	private GroupList groups;
 
 	public GroupThread(Socket _socket, GroupServer _gs)
 	{
 		socket = _socket;
 		my_gs = _gs;
+		groups = new GroupList();
 	}
 
 	public void run()
@@ -86,10 +90,26 @@ public class GroupThread extends Thread
 						rsaCipher.init(Cipher.ENCRYPT_MODE, my_gs.RSAkeys.getPrivate());
 						encrypted = rsaCipher.doFinal(yourToken.getBytes());
 						
+						TreeSet<String> groupNames = yourToken.getGroups();
+						ArrayList<Group> userGroups = new ArrayList<Group>();
+						userGroups = getUserGroups(groupNames);
 						aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
 
 						encrypted = aesCipher.doFinal(encrypted);
 						response.addObject(encrypted);
+						
+						byte[] numGroups = ByteBuffer.allocate(4).putInt(userGroups.size()).array();
+						response.addObject(aesCipher.doFinal(numGroups));
+						if(userGroups.isEmpty()){
+							for(Group group : userGroups){
+								response.addObject(aesCipher.doFinal(group.name.getBytes()));
+								byte[] numKeys = ByteBuffer.allocate(4).putInt(group.keys.size()).array();
+								response.addObject(aesCipher.doFinal(numKeys));
+								for(SecretKey key : group.keys){
+									response.addObject(aesCipher.doFinal(key.getEncoded()));
+								}
+							}
+						}
 					}
 					else
 						response = new Envelope("FAIL");
@@ -393,6 +413,16 @@ public class GroupThread extends Thread
 		}
 	}
 
+	private ArrayList<Group> getUserGroups(TreeSet<String> groupNames) {
+		ArrayList<Group> userGroups = new ArrayList<Group>();
+		
+		for(String name : groupNames){
+			userGroups.add(groups.getGroup(name));
+		}
+		
+		return userGroups;
+	}
+
 	//Method to create tokens
 	private UserToken createToken(String username, String password) 
 	{
@@ -524,6 +554,7 @@ public class GroupThread extends Thread
 			// make sure the requester owns the group
 			if(my_gs.userList.getUserOwnership(requester).contains(group))
 			{
+				groups.removeGroup(group);
 				my_gs.userList.removeMember(requester, group);
 
 				return true;
@@ -543,6 +574,7 @@ public class GroupThread extends Thread
 			// make sure the requester does not already own this group
 			if(!my_gs.userList.getUserOwnership(requester).contains(group))
 			{
+				groups.addGroup(group);
 				my_gs.userList.addGroup(requester, group);
 				my_gs.userList.addOwnership(requester, group);
 
@@ -606,6 +638,7 @@ public class GroupThread extends Thread
 				// make sure the user exists
 				if(my_gs.userList.checkUser(user))
 				{
+					groups.addGroupKey(group);
 					my_gs.userList.removeMember(user, group);
 
 					return true;

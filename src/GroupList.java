@@ -5,6 +5,7 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
 public class GroupList {
+
 	public ArrayList<Group> groups;
 	private KeyGenerator keyGen = null;
 
@@ -13,25 +14,57 @@ public class GroupList {
 		try {
 			keyGen = KeyGenerator.getInstance("AES");
 		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		//128 bit key length
 		keyGen.init(128);
+		groups = new ArrayList<Group>();
 	}
 	
 	public void addGroup(String name){
-		
+		Group newGroup = new Group(name,keyGen.generateKey());
+		groups.add(newGroup);
 	}
 	
-}
-
-class Group{
-	public String name;
-	public SecretKey key;
+	public void addGroupKey(String groupName){
+		for(Group group : groups){
+			if(group.name.equals(groupName)){
+				group.addKey(keyGen.generateKey());
+			}
+		}
+	}
 	
-	Group(String groupName,SecretKey groupKey){
-		groupName = name;
-		key = groupKey;
+	public SecretKey getGroupKey(String groupName,int index){
+		for(Group group : groups){
+			if(group.name.equals(groupName)){
+				return group.getKey(index);
+			}
+		}
+		return null;
+	}
+	
+	public int getNumGroupKeys(String groupName){
+		for(Group group : groups){
+			if(group.name.equals(groupName)){
+				return group.keys.size();
+			}
+		}
+		return 0;
+	}
+	
+	public void removeGroup(String groupName){
+		for(Group group : groups){
+			if(group.name.equals(groupName)){
+				groups.remove(group);
+			}
+		}
+	}
+	
+	public Group getGroup(String groupName){
+		for(Group group : groups){
+			if(group.name.equals(groupName)){
+				return group;
+			}
+		}
+		return null;
 	}
 }

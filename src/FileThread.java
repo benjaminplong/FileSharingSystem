@@ -5,6 +5,7 @@
 import java.lang.Thread;
 import java.math.BigInteger;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.RSAPublicKeySpec;
@@ -147,6 +148,9 @@ public class FileThread extends Thread
 
 							decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(2));
 							rsaCipher.init(Cipher.DECRYPT_MODE, groupKey);
+							
+							decrypted = aesCipher.doFinal((byte[]) e.getObjContents().get(3));
+							int keyIndex = ByteBuffer.wrap(decrypted).getInt();
 							decrypted = rsaCipher.doFinal(decrypted);
 
 							String tokenParts = new String(decrypted);
@@ -180,7 +184,7 @@ public class FileThread extends Thread
 
 								if(e.getMessage().compareTo("EOF")==0) {
 									System.out.printf("Transfer successful file %s\n", remotePath);
-									FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath);
+									FileServer.fileList.addFile(yourToken.getSubject(), group, remotePath, keyIndex);
 									response = new Envelope("OK"); //Success
 								}
 								else {
@@ -235,7 +239,15 @@ public class FileThread extends Thread
 								FileInputStream fis = new FileInputStream(f);
 
 								aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
-
+								
+								int keyIndex = sf.getKeyIndex();
+								ByteBuffer index = ByteBuffer.allocate(4).putInt(keyIndex);
+								e.addObject(aesCipher.doFinal(index.array()));
+								e.addObject(aesCipher.doFinal(sf.getGroup().getBytes()));
+								
+								output.writeObject(e);
+								
+								e = (Envelope) input.readObject();
 								do {
 									byte[] buf = new byte[4096];
 									if (e.getMessage().compareTo("DOWNLOADF")!=0) {
@@ -292,7 +304,6 @@ public class FileThread extends Thread
 						{
 							System.err.println("Error: " + e.getMessage());
 							e1.printStackTrace(System.err);
-
 						}
 					}
 				}
