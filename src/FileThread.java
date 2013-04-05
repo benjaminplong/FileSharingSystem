@@ -156,6 +156,10 @@ public class FileThread extends Thread
 								System.out.printf("Error: file already exists at %s\n", remotePath);
 								response = new Envelope("FAIL-FILEEXISTS"); //Success
 							}
+							else if (!yourToken.getAddress.equals(socket.getInetAddress())) {
+								System.out.printf("Error: user accessing from invalid IP address %s\n", group);
+								response = new Envelope("FAIL-INVALIDIP"); //Success
+							}
 							else if (!yourToken.getGroups().contains(group)) {
 								System.out.printf("Error: user missing valid token for group %s\n", group);
 								response = new Envelope("FAIL-UNAUTHORIZED"); //Success
@@ -214,6 +218,10 @@ public class FileThread extends Thread
 						e = new Envelope("ERROR_FILEMISSING");
 						output.writeObject(e);
 
+					}
+					else if (!yourToken.getAddress.equals(socket.getInetAddress())) {
+						System.out.printf("Error: user accessing from invalid IP address %s\n", group);
+						response = new Envelope("FAIL-INVALIDIP"); //Success
 					}
 					else if (!t.getGroups().contains(sf.getGroup())){
 						System.out.printf("Error user %s doesn't have permission\n", t.getSubject());
@@ -314,6 +322,10 @@ public class FileThread extends Thread
 					if (sf == null) {
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
 						e = new Envelope("ERROR_DOESNTEXIST");
+					}
+					else if (!yourToken.getAddress.equals(socket.getInetAddress())) {
+						System.out.printf("Error: user accessing from invalid IP address %s\n", group);
+						response = new Envelope("FAIL-INVALIDIP"); //Success
 					}
 					else if (!t.getGroups().contains(sf.getGroup())){
 						System.out.printf("Error user %s doesn't have permission\n", t.getSubject());

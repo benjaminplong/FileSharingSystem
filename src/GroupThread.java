@@ -417,29 +417,38 @@ public class GroupThread extends Thread
 	private boolean createUser(String username, String password, UserToken yourToken)
 	{
 		String requester = yourToken.getSubject();
+		InetAddress address = yourToken.getAddress();
 
 		//Check if requester exists
 		if(my_gs.userList.checkUser(requester))
 		{
-			//Get the user's groups
-			ArrayList<String> temp = my_gs.userList.getUserGroups(requester);
-			//requester needs to be an administrator
-			if(temp.contains("ADMIN"))
+			//Check requester's IP address
+			if (socket.getInetAddress().equals(address))
 			{
-				//Does user already exist?
-				if(my_gs.userList.checkUser(username))
+				//Get the user's groups
+				ArrayList<String> temp = my_gs.userList.getUserGroups(requester);
+				//requester needs to be an administrator
+				if(temp.contains("ADMIN"))
 				{
-					return false; //User already exists
+					//Does user already exist?
+					if(my_gs.userList.checkUser(username))
+					{
+						return false; //User already exists
+					}
+					else
+					{
+						my_gs.userList.addUser(username, password);
+						return true;
+					}
 				}
 				else
 				{
-					my_gs.userList.addUser(username, password);
-					return true;
+					return false; //requester not an administrator
 				}
 			}
 			else
 			{
-				return false; //requester not an administrator
+				return false; //requester is accessing from wrong IP address
 			}
 		}
 		else
@@ -452,64 +461,73 @@ public class GroupThread extends Thread
 	private boolean deleteUser(String username, UserToken yourToken)
 	{
 		String requester = yourToken.getSubject();
-
+		InetAddress address = yourToken.getAddress();
+		
 		//Does requester exist?
 		if(my_gs.userList.checkUser(requester))
 		{
-			ArrayList<String> temp = my_gs.userList.getUserGroups(requester);
-			//requester needs to be an administer
-			if(temp.contains("ADMIN"))
+			//Check requester's IP address
+			if (socket.getInetAddress().equals(address))
 			{
-				//Does user exist?
-				if(my_gs.userList.checkUser(username))
+				ArrayList<String> temp = my_gs.userList.getUserGroups(requester);
+				//requester needs to be an administer
+				if(temp.contains("ADMIN"))
 				{
-					//User needs deleted from the groups they belong
-					ArrayList<String> deleteFromGroups = new ArrayList<String>();
-
-					//This will produce a hard copy of the list of groups this user belongs
-					for(int index = 0; index < my_gs.userList.getUserGroups(username).size(); index++)
+					//Does user exist?
+					if(my_gs.userList.checkUser(username))
 					{
-						deleteFromGroups.add(my_gs.userList.getUserGroups(username).get(index));
-					}
+						//User needs deleted from the groups they belong
+						ArrayList<String> deleteFromGroups = new ArrayList<String>();
 
-					//Delete the user from the groups
-					//If user is the owner, removeMember will automatically delete group!
-					for(int index = 0; index < deleteFromGroups.size(); index++)
+						//This will produce a hard copy of the list of groups this user belongs
+						for(int index = 0; index < my_gs.userList.getUserGroups(username).size(); index++)
+						{
+							deleteFromGroups.add(my_gs.userList.getUserGroups(username).get(index));
+						}
+
+						//Delete the user from the groups
+						//If user is the owner, removeMember will automatically delete group!
+						for(int index = 0; index < deleteFromGroups.size(); index++)
+						{
+							my_gs.userList.removeMember(username, deleteFromGroups.get(index));
+						}
+
+						//If groups are owned, they must be deleted
+						ArrayList<String> deleteOwnedGroup = new ArrayList<String>();
+
+						//Make a hard copy of the user's ownership list
+						for(int index = 0; index < my_gs.userList.getUserOwnership(username).size(); index++)
+						{
+							deleteOwnedGroup.add(my_gs.userList.getUserOwnership(username).get(index));
+						}
+
+						//Delete owned groups
+						for(int index = 0; index < deleteOwnedGroup.size(); index++)
+						{
+							//Use the delete group method. Token must be created for this action
+							deleteGroup(deleteOwnedGroup.get(index), new Token(my_gs.name, username, deleteOwnedGroup));
+						}
+
+						//Delete the user from the user list
+						my_gs.userList.deleteUser(username);
+	
+						return true;	
+					}
+					else
 					{
-						my_gs.userList.removeMember(username, deleteFromGroups.get(index));
+						return false; //User does not exist
+
 					}
-
-					//If groups are owned, they must be deleted
-					ArrayList<String> deleteOwnedGroup = new ArrayList<String>();
-
-					//Make a hard copy of the user's ownership list
-					for(int index = 0; index < my_gs.userList.getUserOwnership(username).size(); index++)
-					{
-						deleteOwnedGroup.add(my_gs.userList.getUserOwnership(username).get(index));
-					}
-
-					//Delete owned groups
-					for(int index = 0; index < deleteOwnedGroup.size(); index++)
-					{
-						//Use the delete group method. Token must be created for this action
-						deleteGroup(deleteOwnedGroup.get(index), new Token(my_gs.name, username, deleteOwnedGroup));
-					}
-
-					//Delete the user from the user list
-					my_gs.userList.deleteUser(username);
-
-					return true;	
 				}
 				else
 				{
-					return false; //User does not exist
-
+					return false; //requester is not an administer
 				}
 			}
 			else
 			{
-				return false; //requester is not an administer
-			}
+				return false; //requester is accessing from wrong IP address
+			}	
 		}
 		else
 		{
@@ -520,16 +538,25 @@ public class GroupThread extends Thread
 	private boolean deleteGroup(String group, UserToken token)
 	{
 		String requester = token.getSubject();
-
+		InetAddress address = yourToken.getAddress();
+		
 		//Does requester exist?
 		if(my_gs.userList.checkUser(requester))
 		{
-			// make sure the requester owns the group
-			if(my_gs.userList.getUserOwnership(requester).contains(group))
+			//Check requester's IP address
+			if (socket.getInetAddress().equals(address))
 			{
-				my_gs.userList.removeMember(requester, group);
+				// make sure the requester owns the group
+				if(my_gs.userList.getUserOwnership(requester).contains(group))
+				{
+					my_gs.userList.removeMember(requester, group);
 
-				return true;
+					return true;
+				}
+			}
+			else
+			{
+				return false; //requester is accessing from wrong IP address
 			}
 		}
 
@@ -539,17 +566,26 @@ public class GroupThread extends Thread
 	private boolean createGroup(String group, UserToken token)
 	{
 		String requester = token.getSubject();
-
+		InetAddress address = yourToken.getAddress();
+		
 		//Does requester exist?
 		if(my_gs.userList.checkUser(requester))
 		{
-			// make sure the requester does not already own this group
-			if(!my_gs.userList.getUserOwnership(requester).contains(group))
+			//Check requester's IP address
+			if (socket.getInetAddress().equals(address))
 			{
-				my_gs.userList.addGroup(requester, group);
-				my_gs.userList.addOwnership(requester, group);
+				// make sure the requester does not already own this group
+				if(!my_gs.userList.getUserOwnership(requester).contains(group))
+				{
+					my_gs.userList.addGroup(requester, group);
+					my_gs.userList.addOwnership(requester, group);
 
-				return true;
+					return true;
+				}
+			}
+			else
+			{
+				return false; //requester is accessing from wrong IP address
 			}
 		}
 
@@ -559,14 +595,23 @@ public class GroupThread extends Thread
 	private List<String> listMembers(String group, UserToken token)
 	{
 		String requester = token.getSubject();
+		InetAddress address = yourToken.getAddress();
 
 		//Does requester exist?
 		if(my_gs.userList.checkUser(requester))
 		{
-			// make sure the requester owns the group
-			if(my_gs.userList.getUserOwnership(requester).contains(group))
+			//Check requester's IP address
+			if (socket.getInetAddress().equals(address))
+			{			
+				// make sure the requester owns the group
+				if(my_gs.userList.getUserOwnership(requester).contains(group))
+				{
+					return my_gs.userList.getMembers(group);
+				}
+			}
+			else
 			{
-				return my_gs.userList.getMembers(group);
+				return false; //requester is accessing from wrong IP address
 			}
 		}
 
@@ -576,20 +621,29 @@ public class GroupThread extends Thread
 	private boolean addUserToGroup(String user, String group, UserToken token)
 	{
 		String requester = token.getSubject();
+		InetAddress address = yourToken.getAddress();
 
 		//Does requester exist?
 		if(my_gs.userList.checkUser(requester))
 		{
-			// make sure the requester owns the group
-			if(my_gs.userList.getUserOwnership(requester).contains(group))
-			{
-				// make sure the user exists
-				if(my_gs.userList.checkUser(user))
+			//Check requester's IP address
+			if (socket.getInetAddress().equals(address))
+			{	
+				// make sure the requester owns the group
+				if(my_gs.userList.getUserOwnership(requester).contains(group))
 				{
-					my_gs.userList.addGroup(user, group);
+					// make sure the user exists
+						if(my_gs.userList.checkUser(user))
+					{
+						my_gs.userList.addGroup(user, group);
 
-					return true;
+						return true;
+					}
 				}
+			}
+			else
+			{
+				return false; //requester is accessing from wrong IP address
 			}
 		}
 
@@ -599,20 +653,29 @@ public class GroupThread extends Thread
 	private boolean deleteUserFromGroup(String user, String group, UserToken token)
 	{
 		String requester = token.getSubject();
+		InetAddress address = yourToken.getAddress();
 
 		//Does requester exist?
 		if(my_gs.userList.checkUser(requester))
 		{
-			// make sure the requester owns the group
-			if(my_gs.userList.getUserOwnership(requester).contains(group))
-			{
-				// make sure the user exists
-				if(my_gs.userList.checkUser(user))
+			//Check requester's IP address
+			if (socket.getInetAddress().equals(address))
+			{	
+				// make sure the requester owns the group
+				if(my_gs.userList.getUserOwnership(requester).contains(group))
 				{
-					my_gs.userList.removeMember(user, group);
+					// make sure the user exists
+					if(my_gs.userList.checkUser(user))
+					{
+						my_gs.userList.removeMember(user, group);
 
-					return true;
+						return true;
+					}
 				}
+			}
+			else
+			{
+				return false; //requester is accessing from wrong IP address
 			}
 		}
 		return false;
