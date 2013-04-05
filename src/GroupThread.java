@@ -3,6 +3,7 @@
  */
 import java.lang.Thread;
 import java.net.Socket;
+import java.lang.InetAddress;
 import java.io.*;
 import java.util.*;
 
@@ -75,8 +76,10 @@ public class GroupThread extends Thread
 
 					decrypted = aesCipher.doFinal((byte[]) message.getObjContents().get(1));
 					String password = new String(decrypted); //Get the password
+					
+					InetAddress address = socket.getInetAddress(); //Get the IP address
 
-					UserToken yourToken = createToken(username, password); //Create a token
+					UserToken yourToken = createToken(username, password, address); //Create a token
 
 					//Respond to the client. On error, the client will receive a null token
 					if (yourToken != null)
@@ -394,13 +397,13 @@ public class GroupThread extends Thread
 	}
 
 	//Method to create tokens
-	private UserToken createToken(String username, String password) 
+	private UserToken createToken(String username, String password, InetAddress address) 
 	{
 		//Check that user is who he says he is
 		if(my_gs.userList.checkUser(username, password))
 		{
 			//Issue a new token with server's name, user's name, and user's groups
-			UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username));
+			UserToken yourToken = new Token(my_gs.name, username, my_gs.userList.getUserGroups(username), address);
 			return yourToken;
 		}
 		else

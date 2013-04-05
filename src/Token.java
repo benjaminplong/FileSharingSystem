@@ -19,12 +19,14 @@ public class Token implements UserToken, java.io.Serializable {
 	
 	private String _server;
 	private String _username;
-	private TreeSet<String> _groups; 
+	private TreeSet<String> _groups;
+	private InetAddress _address;
 
-	public Token(String name, String username, List<String> userGroups) {
+	public Token(String name, String username, List<String> userGroups, InetAddress address) {
 		_server = name;
 		_username = username;
 		_groups = new TreeSet<String>(userGroups);
+		_address = address;
 	}
 	
 	public Token(String parts) {
@@ -68,6 +70,10 @@ public class Token implements UserToken, java.io.Serializable {
 		sb.deleteCharAt(sb.length()-1);
 		String s = new String(_server + "," + _username + "," + sb.toString());
 		return s.getBytes();
+	}
+	
+	public InetAddress getAddress() {
+		return _address;
 	}
 
 }
