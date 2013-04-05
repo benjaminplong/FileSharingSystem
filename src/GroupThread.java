@@ -88,6 +88,7 @@ public class GroupThread extends Thread
 						response = new Envelope("OK");
 
 						rsaCipher.init(Cipher.ENCRYPT_MODE, my_gs.RSAkeys.getPrivate());
+						aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
 						encrypted = rsaCipher.doFinal(yourToken.getBytes());
 						encrypted = aesCipher.doFinal(encrypted);
 						response.addObject(encrypted);
@@ -95,7 +96,6 @@ public class GroupThread extends Thread
 						TreeSet<String> groupNames = yourToken.getGroups();
 						ArrayList<Group> userGroups = new ArrayList<Group>();
 						userGroups = getUserGroups(groupNames);
-						aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
 						
 						byte[] numGroups = ByteBuffer.allocate(4).putInt(userGroups.size()).array();
 						response.addObject(aesCipher.doFinal(numGroups));
@@ -416,7 +416,10 @@ public class GroupThread extends Thread
 		ArrayList<Group> userGroups = new ArrayList<Group>();
 		
 		for(String name : groupNames){
-			userGroups.add(groups.getGroup(name));
+			if(name.equalsIgnoreCase("ADMIN"))
+				continue;
+			else
+				userGroups.add(groups.getGroup(name));
 		}
 		
 		return userGroups;
