@@ -156,7 +156,7 @@ public class FileThread extends Thread
 								System.out.printf("Error: file already exists at %s\n", remotePath);
 								response = new Envelope("FAIL-FILEEXISTS"); //Success
 							}
-							else if (!yourToken.getAddress.equals(socket.getInetAddress())) {
+							else if (!yourToken.getAddress().equals(socket.getInetAddress())) {
 								System.out.printf("Error: user accessing from invalid IP address %s\n", group);
 								response = new Envelope("FAIL-INVALIDIP"); //Success
 							}
@@ -219,7 +219,7 @@ public class FileThread extends Thread
 						output.writeObject(e);
 
 					}
-					else if (!yourToken.getAddress.equals(socket.getInetAddress())) {
+					else if (!yourToken.getAddress().equals(socket.getInetAddress())) {
 						System.out.printf("Error: user accessing from invalid IP address %s\n", group);
 						response = new Envelope("FAIL-INVALIDIP"); //Success
 					}
@@ -323,7 +323,7 @@ public class FileThread extends Thread
 						System.out.printf("Error: File %s doesn't exist\n", remotePath);
 						e = new Envelope("ERROR_DOESNTEXIST");
 					}
-					else if (!yourToken.getAddress.equals(socket.getInetAddress())) {
+					else if (!yourToken.getAddress().equals(socket.getInetAddress())) {
 						System.out.printf("Error: user accessing from invalid IP address %s\n", group);
 						response = new Envelope("FAIL-INVALIDIP"); //Success
 					}
