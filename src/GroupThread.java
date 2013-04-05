@@ -89,18 +89,17 @@ public class GroupThread extends Thread
 
 						rsaCipher.init(Cipher.ENCRYPT_MODE, my_gs.RSAkeys.getPrivate());
 						encrypted = rsaCipher.doFinal(yourToken.getBytes());
+						encrypted = aesCipher.doFinal(encrypted);
+						response.addObject(encrypted);
 						
 						TreeSet<String> groupNames = yourToken.getGroups();
 						ArrayList<Group> userGroups = new ArrayList<Group>();
 						userGroups = getUserGroups(groupNames);
 						aesCipher.init(Cipher.ENCRYPT_MODE, sessionKey);
-
-						encrypted = aesCipher.doFinal(encrypted);
-						response.addObject(encrypted);
 						
 						byte[] numGroups = ByteBuffer.allocate(4).putInt(userGroups.size()).array();
 						response.addObject(aesCipher.doFinal(numGroups));
-						if(userGroups.isEmpty()){
+						if(!userGroups.isEmpty()){
 							for(Group group : userGroups){
 								response.addObject(aesCipher.doFinal(group.name.getBytes()));
 								byte[] numKeys = ByteBuffer.allocate(4).putInt(group.keys.size()).array();

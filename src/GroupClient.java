@@ -45,19 +45,23 @@ public class GroupClient extends Client implements GroupClientInterface {
 
 				if(temp.size() != 0)
 				{
-					ListIterator<Object> it = temp.listIterator();
-					token = decryptAES((byte[])it.next());
-					
-					int numGroups = ByteBuffer.wrap((decryptAES((byte[])it.next()))).getInt();
-					if(numGroups > 0){
-						for(int i = 0; i < numGroups; i++){
-							Group group = new Group(decryptAES((byte[])it.next()).toString());
-							int numKeys = ByteBuffer.wrap((decryptAES((byte[])it.next()))).getInt();
-							for(int j = 0; j < numKeys; j++){
-								byte[] key = decryptAES((byte[])it.next());
-								group.addKey(new SecretKeySpec(key, 0, key.length, "AES"));
+					int count = 0;
+					token = decryptAES((byte[])temp.get(count));
+					count++;
+					if(temp.size() > 1){
+						int numGroups = ByteBuffer.wrap((decryptAES((byte[])temp.get(count)))).getInt();
+						count++;
+						if(numGroups > 0){
+							for(int i = 0; i < numGroups; i++,count++){
+								Group group = new Group(decryptAES((byte[])temp.get(count)).toString());
+								count++;
+								int numKeys = ByteBuffer.wrap((decryptAES((byte[])temp.get(count)))).getInt();
+								for(int j = 0; j < numKeys; j++, count++){
+									byte[] key = decryptAES((byte[])temp.get(count));
+									group.addKey(new SecretKeySpec(key, 0, key.length, "AES"));
+								}
+								clientGroups.add(group);
 							}
-							clientGroups.add(group);
 						}
 					}
 					
