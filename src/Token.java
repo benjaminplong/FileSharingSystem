@@ -19,23 +19,25 @@ public class Token implements UserToken, java.io.Serializable {
 	
 	private String _server;
 	private String _username;
-	private TreeSet<String> _groups;
 	private InetAddress _address;
+	private TreeSet<String> _groups;
+
 
 	public Token(String name, String username, List<String> userGroups, InetAddress address) {
 		_server = name;
 		_username = username;
-		_groups = new TreeSet<String>(userGroups);
 		_address = address;
+		_groups = new TreeSet<String>(userGroups);
 	}
 	
 	public Token(String parts) {
 		String[] fields = parts.split(",");
 		_server = fields[0];
 		_username = fields[1];
+		_address = fields[2];
 		_groups = new TreeSet<String>();
 		
-		for (int i = 2; i <fields.length; ++i)
+		for (int i = 3; i <fields.length; ++i)
 			_groups.add(fields[i]);
 	}
 
