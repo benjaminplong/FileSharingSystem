@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -26,9 +27,6 @@ public interface GroupClientInterface
      *
      */
     public void disconnect();
-    
-    public byte[] getPublicKey();
-
 
     /**
      * Method used to get a token from the group server.  Right now,
@@ -138,5 +136,8 @@ public interface GroupClientInterface
      *         an error.
      */
     public List<String> listMembers(final String group, final byte[] token);
+
+
+	public ArrayList<Group> getGroups();
 
 }   //-- end interface GroupClientInterface

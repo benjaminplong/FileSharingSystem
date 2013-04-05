@@ -68,6 +68,46 @@ public class GroupServer extends Server {
 		
 		console.close();
 		
+		//  generate RSA keys for server
+		createRSAKeyPair();
+		
+		//create certificate for group server
+		ObjectOutputStream keyStream = null;
+		File certFile = new File("GroupCert.bin");
+		//remove the file before writing the new key if an old certificate existed
+		if(certFile.exists()){
+			certFile.delete();
+		}
+		try {
+			certFile.createNewFile();
+		} catch (IOException e2) {
+			e2.printStackTrace();
+		}
+		FileOutputStream certStream = null;
+		try {
+			certStream = new FileOutputStream(certFile);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		try {
+			keyStream = new ObjectOutputStream(certStream);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		try {
+			keyStream.writeObject(publicKey.getModulus());
+			keyStream.writeObject(publicKey.getPublicExponent());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		try {
+			keyStream.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
 		//Autosave Daemon. Saves lists every 5 minutes
 		AutoSave aSave = new AutoSave(this);
 		aSave.setDaemon(true);
@@ -80,8 +120,6 @@ public class GroupServer extends Server {
 		{
 			
 			final ServerSocket serverSock = new ServerSocket(port);
-			
-			createRSAKeyPair();
 			
 			Socket sock = null;
 			GroupThread thread = null;
@@ -101,7 +139,7 @@ public class GroupServer extends Server {
 			System.err.println("Error: " + e.getMessage());
 			e.printStackTrace(System.err);
 		}
-
+		
 	}
 	
 }

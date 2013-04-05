@@ -1,4 +1,5 @@
 
+import java.net.InetAddress;
 import java.util.TreeSet;
 
 /**
@@ -50,5 +51,8 @@ public interface UserToken
 
 
 	public byte[] getBytes();
+
+
+	public InetAddress getAddress();
 
 }   //-- end interface UserToken

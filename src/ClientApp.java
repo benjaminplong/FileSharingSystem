@@ -9,6 +9,7 @@
 import java.awt.*;
 import java.awt.event.*;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.crypto.NoSuchPaddingException;
@@ -23,10 +24,9 @@ public class ClientApp extends JFrame implements WindowListener
 
 	private GroupClientInterface gc;
 	private FileClientInterface fc;
+	private ArrayList<Group> myGroups;
 
 	private byte[] myToken;
-	
-	private byte[] groupKey;
 
 	public static void main(String[] args) throws NoSuchAlgorithmException, NoSuchPaddingException
 	{
@@ -39,6 +39,7 @@ public class ClientApp extends JFrame implements WindowListener
 
 		gc = new GroupClient();
 		fc = new FileClient();
+		myGroups = new ArrayList<Group>();
 
 		makeLayout();
 
@@ -57,7 +58,6 @@ public class ClientApp extends JFrame implements WindowListener
 		gConnectButton.setName("groupConnect");
 		JButton gDisconnectButton = new JButton("Disconnect from Server");
 		gDisconnectButton.setName("groupDisconnect");
-		JButton getKeyButton = new JButton("Get Public Key");
 		JButton getTokenButton = new JButton("Get Token");
 		JButton createUserButton = new JButton("Create User");
 		JButton deleteUserButton = new JButton("Delete User");
@@ -76,11 +76,6 @@ public class ClientApp extends JFrame implements WindowListener
 		gDisconnectButton.addActionListener(new ActionListener() { 
 			public void actionPerformed(ActionEvent e) { 
 				disconnectButtonPressed(e);
-			} 
-		} );
-		getKeyButton.addActionListener(new ActionListener() { 
-			public void actionPerformed(ActionEvent e) { 
-				getKeyButtonPressed();
 			} 
 		} );
 		getTokenButton.addActionListener(new ActionListener() { 
@@ -132,7 +127,6 @@ public class ClientApp extends JFrame implements WindowListener
 		// Add the buttons to the panel
 		groupPanel.add(gConnectButton);
 		groupPanel.add(gDisconnectButton);
-		groupPanel.add(getKeyButton);
 		groupPanel.add(getTokenButton);
 		groupPanel.add(createUserButton);
 		groupPanel.add(deleteUserButton);
@@ -148,7 +142,6 @@ public class ClientApp extends JFrame implements WindowListener
 		fConnectButton.setName("fileConnect");
 		JButton fDisconnectButton = new JButton("Disconnect from Server");
 		fDisconnectButton.setName("fileDisconnect");
-		JButton setKeyButton = new JButton("Send Public Key");
 		JButton listFilesButton = new JButton("List Files");
 		JButton uploadFileButton = new JButton("Upload File");
 		JButton downloadFileButton = new JButton("Download File");
@@ -163,11 +156,6 @@ public class ClientApp extends JFrame implements WindowListener
 		fDisconnectButton.addActionListener(new ActionListener() { 
 			public void actionPerformed(ActionEvent e) { 
 				disconnectButtonPressed(e);
-			} 
-		} );
-		setKeyButton.addActionListener(new ActionListener() { 
-			public void actionPerformed(ActionEvent e) { 
-				setKeyButtonPressed();
 			} 
 		} );
 		listFilesButton.addActionListener(new ActionListener() { 
@@ -197,7 +185,6 @@ public class ClientApp extends JFrame implements WindowListener
 
 		filePanel.add(fConnectButton);
 		filePanel.add(fDisconnectButton);
-		filePanel.add(setKeyButton);
 		filePanel.add(listFilesButton);
 		filePanel.add(uploadFileButton);
 		filePanel.add(downloadFileButton);
@@ -207,14 +194,6 @@ public class ClientApp extends JFrame implements WindowListener
 
 		add(groupPanel);
 		add(filePanel);
-	}
-
-	protected void setKeyButtonPressed() {
-		fc.sendGroupKey(groupKey);
-	}
-
-	protected void getKeyButtonPressed() {
-		groupKey = gc.getPublicKey();
 	}
 
 	protected void deleteFileButtonPressed()
@@ -237,7 +216,7 @@ public class ClientApp extends JFrame implements WindowListener
 
 		if (!sourceFile.isEmpty() && !destFile.isEmpty())
 		{
-			if (fc.download(sourceFile, destFile, myToken))
+			if (fc.download(sourceFile, destFile, myToken, myGroups))
 				JOptionPane.showMessageDialog(this, "File downloaded successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
 			else
 				JOptionPane.showMessageDialog(this, "File not downloaded.", "Warning", JOptionPane.WARNING_MESSAGE);
@@ -252,7 +231,7 @@ public class ClientApp extends JFrame implements WindowListener
 
 		if (!sourceFile.isEmpty() && !destFile.isEmpty() && !group.isEmpty())
 		{
-			if (fc.upload(sourceFile, destFile, group, myToken))
+			if (fc.upload(sourceFile, destFile, group, myToken, myGroups))
 				JOptionPane.showMessageDialog(this, "File uploaded successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
 			else
 				JOptionPane.showMessageDialog(this, "File not uploaded.", "Warning", JOptionPane.WARNING_MESSAGE);
@@ -384,6 +363,7 @@ public class ClientApp extends JFrame implements WindowListener
 		if (!username.isEmpty())
 		{
 			myToken = gc.getToken(username,password);
+			myGroups = gc.getGroups();
 
 			if (myToken == null)
 				JOptionPane.showMessageDialog(this, "No token received. Check username.", "Warning", JOptionPane.WARNING_MESSAGE);

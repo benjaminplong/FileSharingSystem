@@ -1,6 +1,9 @@
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.RSAPublicKeySpec;
 
 public abstract class Server {
 
@@ -8,6 +11,7 @@ public abstract class Server {
 	public String name;
 
 	protected KeyPair RSAkeys;
+	protected RSAPublicKeySpec publicKey;
 
 	abstract void start();
 
@@ -28,7 +32,15 @@ public abstract class Server {
 		try {
 			KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
 			keyGen.initialize(2048);
-			RSAkeys = keyGen.genKeyPair();
+			KeyPair kp = keyGen.genKeyPair();
+			RSAkeys = kp;
+	        KeyFactory fact = KeyFactory.getInstance("RSA");        
+	        try {
+	        	publicKey = fact.getKeySpec(kp.getPublic(), RSAPublicKeySpec.class);
+			} catch (InvalidKeySpecException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		} catch (NoSuchAlgorithmException e) {
 			System.err.println("Error: " + e.getMessage());
 			e.printStackTrace(System.err);
